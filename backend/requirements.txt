@@ -1,0 +1,13 @@
+fastapi==0.116.1
+uvicorn[standard]==0.35.0
+python-multipart==0.0.20
+pydantic==2.11.7
+pandas==2.3.1
+openpyxl==3.1.5
+phonenumbers==9.0.10
+dnspython==2.7.0
+ddgs==9.5.4
+aiohttp==3.12.15
+aiohttp-socks==0.10.1
+crawl4ai==0.7.4
+playwright==1.54.0
