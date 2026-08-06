@@ -4,60 +4,285 @@ interface Env {
   DB: D1Database;
   ASSETS: Fetcher;
   BROWSER?: { quickAction(action: string, input: Record<string, unknown>): Promise<unknown> };
-  QIKREACH_USERNAME: string;
-  QIKREACH_PASSWORD: string;
-  QIKREACH_SESSION_SECRET: string;
   BRAVE_SEARCH_API_KEY?: string;
 }
 
 type Lead = Record<string, unknown>;
-type SearchFields = {name?:string;company?:string;phone?:string;email?:string;ein?:string;state?:string;zip?:string;address?:string};
-type WebHit = {title:string;url:string;snippet:string;provider:string};
+type SearchFields = {
+  name?: string;
+  company?: string;
+  phone?: string;
+  email?: string;
+  ein?: string;
+  state?: string;
+  zip?: string;
+  address?: string;
+};
+type WebHit = { title: string; url: string; snippet: string; provider: string };
 
-const E=new TextEncoder(),MAX=10*1024*1024;
-const J=(v:unknown,s=200)=>new Response(JSON.stringify(v),{status:s,headers:{"content-type":"application/json;charset=UTF-8","cache-control":"no-store"}});
-const C=(v:unknown)=>v==null?"":String(v).trim();
-const norm=(v:string)=>C(v).toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g,"").replace(/&/g," and ").replace(/[^a-z0-9]+/g," ").trim().replace(/\s+/g," ");
-const compact=(v:string)=>norm(v).replace(/\s/g,"");
-const digits=(v:string)=>C(v).replace(/\D/g,"");
-const phoneDigits=(v:string)=>{const d=digits(v);return d.length===11&&d.startsWith("1")?d.slice(1):d};
-const emailNorm=(v:string)=>C(v).toLowerCase().replace(/\s+/g,"").replace(/[;,]+$/,"");
-const xmlDecode=(v:string)=>v.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g,"$1").replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&#39;/g,"'");
-const strip=(v:string)=>v.replace(/<script[\s\S]*?<\/script>/gi," ").replace(/<style[\s\S]*?<\/style>/gi," ").replace(/<[^>]+>/g," ").replace(/\s+/g," ").trim();
+const MAX_UPLOAD = 10 * 1024 * 1024;
+const encoder = new TextEncoder();
+const clean = (value: unknown) => value == null ? "" : String(value).trim();
+const normalize = (value: string) => clean(value).toLowerCase().normalize("NFKD")
+  .replace(/[\u0300-\u036f]/g, "").replace(/&/g, " and ")
+  .replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
+const compact = (value: string) => normalize(value).replace(/\s/g, "");
+const digits = (value: string) => clean(value).replace(/\D/g, "");
+const phoneDigits = (value: string) => {
+  const result = digits(value);
+  return result.length === 11 && result.startsWith("1") ? result.slice(1) : result;
+};
 
-async function mac(secret:string,value:string){const k=await crypto.subtle.importKey("raw",E.encode(secret),{name:"HMAC",hash:"SHA-256"},false,["sign"]);return [...new Uint8Array(await crypto.subtle.sign("HMAC",k,E.encode(value)))].map(x=>x.toString(16).padStart(2,"0")).join("")}
-function cookie(r:Request,name:string){for(const p of (r.headers.get("cookie")||"").split(";")){const [k,...v]=p.trim().split("=");if(k===name)return decodeURIComponent(v.join("="))}return""}
-async function auth(r:Request,e:Env){const p=cookie(r,"qikreach_session").split("|");return p.length===3&&p[0]===e.QIKREACH_USERNAME&&Number(p[1])>Date.now()/1000&&p[2]===await mac(e.QIKREACH_SESSION_SECRET,`${p[0]}|${p[1]}`)}
-async function sha(v:string){return [...new Uint8Array(await crypto.subtle.digest("SHA-256",E.encode(v)))].map(x=>x.toString(16).padStart(2,"0")).join("")}
-function valueFor(row:Lead,...names:string[]){const wanted=new Set(names.map(compact)),key=Object.keys(row).find(k=>wanted.has(compact(k)));return C(key?row[key]:"")}
-function normalizePhones(v:string){const seen=new Set<string>();return C(v).split(/[|,;\n]+/).map(x=>{const d=phoneDigits(x);return d.length===10?`+1${d}`:""}).filter(x=>x&&!seen.has(x)&&seen.add(x)).join(" | ")}
-function normalizeEmails(v:string){return [...new Set(C(v).toLowerCase().match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/g)||[])].join(" | ")}
-function distance(a:string,b:string){if(a===b)return 0;if(!a.length)return b.length;if(!b.length)return a.length;const p=Array.from({length:b.length+1},(_,i)=>i);for(let i=1;i<=a.length;i++){let left=i,diag=i-1;for(let j=1;j<=b.length;j++){const up=p[j],next=a[i-1]===b[j-1]?diag:Math.min(diag,up,left)+1;diag=up;p[j]=next;left=next}}return p[b.length]}
-function textScore(q:string,v:string){const a=norm(q),b=norm(v),ac=compact(q),bc=compact(v);if(!a||!b)return 0;if(a===b||ac===bc)return 100;if(b.includes(a)||bc.includes(ac))return 90;const r=1-distance(a.slice(0,96),b.slice(0,96))/Math.max(a.length,b.length);if(r>=.88)return 72;if(r>=.78)return 55;if(r>=.68&&Math.min(a.length,b.length)>=5)return 35;return 0}
-function emailScore(q:string,stored:string){const x=emailNorm(q);if(!x.includes("@"))return 0;let best=0;for(const c of C(stored).toLowerCase().split(/[|,;\s]+/).filter(x=>x.includes("@"))){if(c===x)return 100;const [ql="",qd=""]=x.split("@"),[cl="",cd=""]=c.split("@");if(!ql||!qd||!cl||!cd)continue;const lr=1-distance(ql,cl)/Math.max(ql.length,cl.length),dr=1-distance(qd,cd)/Math.max(qd.length,cd.length);if(ql===cl&&dr>=.72)best=Math.max(best,88);else if(qd===cd&&lr>=.72)best=Math.max(best,84);else if(lr>=.8&&dr>=.8)best=Math.max(best,76)}return best}
-function buildQuery(q:string,f:SearchFields){return [q,f.name,f.company,f.phone,f.email,f.ein,f.address,f.state,f.zip].map(C).filter(Boolean).join(" ").slice(0,300)}
-function scoreLead(query:string,row:Lead){let s=0;const pd=phoneDigits(query),ed=digits(query);if(pd.length>=4&&phoneDigits(C(row.all_phones)).includes(pd))s=Math.max(s,pd.length>=10?100:82);if(ed.length>=4&&digits(C(row.ein)).includes(ed))s=Math.max(s,ed.length>=9?100:82);s=Math.max(s,emailScore(query,C(row.all_emails)),textScore(query,C(row.company_name)),textScore(query,C(row.owner_name)),textScore(query,C(row.address)));return s}
-
-async function discoverWithBrave(query:string,key?:string):Promise<WebHit[]>{if(!key)return[];const r=await fetch(`https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=8`,{headers:{Accept:"application/json","X-Subscription-Token":key}});if(!r.ok)throw new Error(`Brave search failed (${r.status})`);const j=await r.json() as {web?:{results?:Array<{title?:string;url?:string;description?:string}>}};return (j.web?.results||[]).filter(x=>x.url).map(x=>({title:C(x.title),url:C(x.url),snippet:C(x.description),provider:"Brave Search"}))}
-async function discoverWithBingRss(query:string):Promise<WebHit[]>{const r=await fetch(`https://www.bing.com/search?format=rss&q=${encodeURIComponent(query)}`,{headers:{"user-agent":"Mozilla/5.0 QikReach/1.0"}});if(!r.ok)throw new Error(`Bing discovery failed (${r.status})`);const xml=await r.text(),hits:WebHit[]=[];for(const m of xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)){const item=m[1],get=(tag:string)=>xmlDecode((item.match(new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`,`i`))||[])[1]||"");const url=get("link");if(url)hits.push({title:strip(get("title")),url,snippet:strip(get("description")),provider:"Bing RSS"})}return hits.slice(0,8)}
-async function pageText(url:string,e:Env):Promise<{text:string;mode:string}>{if(e.BROWSER){try{const out=await e.BROWSER.quickAction("markdown",{url});if(typeof out==="string")return{text:out.slice(0,200000),mode:"Browser Run"};if(out instanceof Response)return{text:(await out.text()).slice(0,200000),mode:"Browser Run"};const anyOut=out as {result?:unknown;markdown?:unknown};const text=C(anyOut.result||anyOut.markdown||JSON.stringify(out));if(text)return{text:text.slice(0,200000),mode:"Browser Run"}}catch{}}
-const r=await fetch(url,{redirect:"follow",headers:{"user-agent":"Mozilla/5.0 QikReach/1.0"}});if(!r.ok)throw new Error(`HTTP ${r.status}`);return{text:strip((await r.text()).slice(0,500000)),mode:"Static fetch"}}
-function extractPublic(text:string){const emails=[...new Set((text.toLowerCase().match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/g)||[]).filter(x=>!x.endsWith("@example.com")))].slice(0,10);const raw=text.match(/(?:\+?1[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}/g)||[];const phones=[...new Set(raw.map(phoneDigits).filter(x=>x.length===10).map(x=>`+1${x}`))].slice(0,10);return{emails,phones}}
-async function saveFinding(hit:WebHit,emails:string[],phones:string[],e:Env){if(!emails.length&&!phones.length)return false;const hash=await sha(`${hit.url}|${emails.join("|")}|${phones.join("|")}`.toLowerCase());await e.DB.prepare("INSERT INTO master_leads (lead_hash,company_name,owner_name,revenue,address,dob,ssn,ein,start_date,all_phones,all_emails,sources,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP) ON CONFLICT(lead_hash) DO UPDATE SET all_phones=excluded.all_phones,all_emails=excluded.all_emails,sources=excluded.sources,updated_at=CURRENT_TIMESTAMP").bind(hash,hit.title,"","",hit.url,"","","","",phones.join(" | "),emails.join(" | "),`${hit.provider}: ${hit.url}`).run();return true}
-
-async function api(r:Request,e:Env,u:URL){
-  if(u.pathname==="/api/health"){try{const c=await e.DB.prepare("SELECT COUNT(*) AS count FROM master_leads").first<{count:number}>();return J({ok:true,vault_count:Number(c?.count||0),browser_run:Boolean(e.BROWSER),brave_configured:Boolean(e.BRAVE_SEARCH_API_KEY)})}catch(err){return J({ok:false,error:err instanceof Error?err.message:"D1 unavailable"},500)}}
-  if(!await auth(r,e))return J({error:"Authentication required"},401);
-  if(u.pathname==="/api/search"&&r.method==="POST"){
-    const started=Date.now(),body=await r.json() as {query?:string;fields?:SearchFields},query=buildQuery(C(body.query),body.fields||{});if(!query)return J({error:"Enter something to search"},400);
-    const stages:Array<Record<string,unknown>>=[];const local=await e.DB.prepare("SELECT * FROM master_leads ORDER BY updated_at DESC LIMIT 3000").all<Lead>();const ranked=(local.results||[]).map(row=>({...row,match_score:scoreLead(query,row)})).filter(x=>Number(x.match_score)>=34).sort((a,b)=>Number(b.match_score)-Number(a.match_score)).slice(0,100);stages.push({stage:"Vault search",status:"complete",matches:ranked.length,total_records:(local.results||[]).length});
-    let hits:WebHit[]=[];try{hits=e.BRAVE_SEARCH_API_KEY?await discoverWithBrave(query,e.BRAVE_SEARCH_API_KEY):await discoverWithBingRss(query);stages.push({stage:"Public web discovery",status:"complete",provider:hits[0]?.provider||"none",results:hits.length})}catch(err){stages.push({stage:"Public web discovery",status:"error",message:err instanceof Error?err.message:"Discovery failed"})}
-    const sources=[];let saved=0;for(const hit of hits.slice(0,5)){try{const page=await pageText(hit.url,e),found=extractPublic(`${hit.title}\n${hit.snippet}\n${page.text}`),didSave=await saveFinding(hit,found.emails,found.phones,e);if(didSave)saved++;sources.push({...hit,fetch_mode:page.mode,emails:found.emails,phones:found.phones,status:"checked"})}catch(err){sources.push({...hit,emails:[],phones:[],status:"blocked_or_failed",error:err instanceof Error?err.message:"Fetch failed"})}}
-    stages.push({stage:"Page enrichment",status:"complete",checked:sources.length,saved});
-    return J({ok:true,query,results:ranked,sources,stages,elapsed_ms:Date.now()-started,vault_count:(local.results||[]).length});
-  }
-  if(u.pathname==="/api/batch"&&r.method==="POST"){const f=(await r.formData()).get("file");if(!(f instanceof File)||!f.name.toLowerCase().endsWith(".xlsx"))return J({error:"Select an .xlsx file"},400);if(f.size>MAX)return J({error:"Maximum upload is 10 MiB"},413);const w=XLSX.read(await f.arrayBuffer(),{type:"array"}),rows=XLSX.utils.sheet_to_json<Lead>(w.Sheets[w.SheetNames[0]],{defval:""});if(rows.length>1000)return J({error:"Maximum batch is 1,000 rows"},413);const out=[];for(const row of rows){const company=valueFor(row,"company","company name","business name"),owner=valueFor(row,"owner","owner name","contact","contact name","name"),phones=normalizePhones(valueFor(row,"phone","phones","phone number","mobile")),emails=normalizeEmails(valueFor(row,"email","emails","email address")),ein=valueFor(row,"ein"),lead=[await sha([company,owner,phones,emails,ein].join("|").toLowerCase()||crypto.randomUUID()),company,owner,valueFor(row,"revenue","monthly revenue","annual revenue"),valueFor(row,"address","business address"),valueFor(row,"dob","date of birth"),valueFor(row,"ssn"),ein,valueFor(row,"start date","business start date"),phones,emails,"uploaded spreadsheet"];await e.DB.prepare("INSERT INTO master_leads VALUES (?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP) ON CONFLICT(lead_hash) DO UPDATE SET company_name=excluded.company_name,owner_name=excluded.owner_name,revenue=excluded.revenue,address=excluded.address,dob=excluded.dob,ssn=excluded.ssn,ein=excluded.ein,start_date=excluded.start_date,all_phones=excluded.all_phones,all_emails=excluded.all_emails,sources=excluded.sources,updated_at=CURRENT_TIMESTAMP").bind(...lead).run();out.push({...row,"Normalized Phones":phones,"Validated Emails":emails,"QikReach Sources":"uploaded spreadsheet"})}const o=XLSX.utils.book_new();XLSX.utils.book_append_sheet(o,XLSX.utils.json_to_sheet(out),"Enriched Leads");return new Response(XLSX.write(o,{bookType:"xlsx",type:"array"}),{headers:{"content-type":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","content-disposition":`attachment; filename="qikreach-enriched-${Date.now()}.xlsx"`}})}
-  return J({error:"Not found"},404)
+function json(value: unknown, status = 200) {
+  return new Response(JSON.stringify(value), {
+    status,
+    headers: {
+      "content-type": "application/json;charset=UTF-8",
+      "cache-control": "no-store, max-age=0",
+    },
+  });
 }
 
-export default{async fetch(r:Request,e:Env){try{const u=new URL(r.url);if(!e.QIKREACH_PASSWORD||!e.QIKREACH_SESSION_SECRET)return J({error:"Missing required secrets"},500);if(u.pathname==="/login"&&r.method==="POST"){const f=await r.formData();if(C(f.get("username"))!==e.QIKREACH_USERNAME||C(f.get("password"))!==e.QIKREACH_PASSWORD)return Response.redirect(new URL("/?error=1",u),303);const exp=Math.floor(Date.now()/1000)+43200,body=`${e.QIKREACH_USERNAME}|${exp}`,token=`${body}|${await mac(e.QIKREACH_SESSION_SECRET,body)}`;return new Response(null,{status:303,headers:{location:"/","set-cookie":`qikreach_session=${encodeURIComponent(token)}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=43200`}})}if(u.pathname==="/logout")return new Response(null,{status:303,headers:{location:"/","set-cookie":"qikreach_session=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0"}});if(u.pathname.startsWith("/api/"))return api(r,e,u);if(!await auth(r,e))return e.ASSETS.fetch(new Request(new URL("/login.html",u).toString(),r));return e.ASSETS.fetch(r)}catch(err){return J({error:err instanceof Error?err.message:"Unexpected worker error"},500)}}} satisfies ExportedHandler<Env>;
+async function sha256(value: string) {
+  const hash = await crypto.subtle.digest("SHA-256", encoder.encode(value));
+  return [...new Uint8Array(hash)].map(byte => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function valueFor(row: Lead, ...names: string[]) {
+  const wanted = new Set(names.map(compact));
+  const key = Object.keys(row).find(candidate => wanted.has(compact(candidate)));
+  return clean(key ? row[key] : "");
+}
+
+function normalizePhones(value: string) {
+  const seen = new Set<string>();
+  return clean(value).split(/[|,;\n]+/).map(item => {
+    const number = phoneDigits(item);
+    return number.length === 10 ? `+1${number}` : "";
+  }).filter(item => item && !seen.has(item) && seen.add(item)).join(" | ");
+}
+
+function normalizeEmails(value: string) {
+  return [...new Set(clean(value).toLowerCase().match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/g) || [])].join(" | ");
+}
+
+function distance(a: string, b: string) {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  const previous = Array.from({ length: b.length + 1 }, (_, index) => index);
+  for (let i = 1; i <= a.length; i++) {
+    let left = i;
+    let diagonal = i - 1;
+    for (let j = 1; j <= b.length; j++) {
+      const up = previous[j];
+      const next = a[i - 1] === b[j - 1] ? diagonal : Math.min(diagonal, up, left) + 1;
+      diagonal = up;
+      previous[j] = next;
+      left = next;
+    }
+  }
+  return previous[b.length];
+}
+
+function textScore(query: string, value: string) {
+  const q = normalize(query);
+  const v = normalize(value);
+  if (!q || !v) return 0;
+  if (q === v || compact(query) === compact(value)) return 100;
+  if (v.includes(q) || compact(value).includes(compact(query))) return 90;
+  const ratio = 1 - distance(q.slice(0, 96), v.slice(0, 96)) / Math.max(q.length, v.length);
+  if (ratio >= 0.88) return 72;
+  if (ratio >= 0.78) return 55;
+  if (ratio >= 0.68 && Math.min(q.length, v.length) >= 5) return 35;
+  return 0;
+}
+
+function buildQuery(query: string, fields: SearchFields) {
+  return [query, fields.name, fields.company, fields.phone, fields.email, fields.ein, fields.address, fields.state, fields.zip]
+    .map(clean).filter(Boolean).join(" ").slice(0, 300);
+}
+
+function scoreLead(query: string, row: Lead) {
+  let score = 0;
+  const queryPhone = phoneDigits(query);
+  const queryDigits = digits(query);
+  if (queryPhone.length >= 4 && phoneDigits(clean(row.all_phones)).includes(queryPhone)) {
+    score = Math.max(score, queryPhone.length >= 10 ? 100 : 82);
+  }
+  if (queryDigits.length >= 4 && digits(clean(row.ein)).includes(queryDigits)) {
+    score = Math.max(score, queryDigits.length >= 9 ? 100 : 82);
+  }
+  for (const key of ["company_name", "owner_name", "address", "all_emails"]) {
+    score = Math.max(score, textScore(query, clean(row[key])));
+  }
+  return score;
+}
+
+function decodeXml(value: string) {
+  return value.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+}
+
+function stripHtml(value: string) {
+  return value.replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+async function discover(query: string, env: Env): Promise<WebHit[]> {
+  if (env.BRAVE_SEARCH_API_KEY) {
+    const response = await fetch(`https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=8`, {
+      headers: { Accept: "application/json", "X-Subscription-Token": env.BRAVE_SEARCH_API_KEY },
+    });
+    if (!response.ok) throw new Error(`Brave search failed (${response.status})`);
+    const body = await response.json() as { web?: { results?: Array<{ title?: string; url?: string; description?: string }> } };
+    return (body.web?.results || []).filter(item => item.url).map(item => ({
+      title: clean(item.title), url: clean(item.url), snippet: clean(item.description), provider: "Brave Search",
+    }));
+  }
+
+  const response = await fetch(`https://www.bing.com/search?format=rss&q=${encodeURIComponent(query)}`, {
+    headers: { "user-agent": "Mozilla/5.0 QikReach/1.0" },
+  });
+  if (!response.ok) throw new Error(`Bing discovery failed (${response.status})`);
+  const xml = await response.text();
+  const hits: WebHit[] = [];
+  for (const match of xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)) {
+    const item = match[1];
+    const get = (tag: string) => decodeXml((item.match(new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`, "i")) || [])[1] || "");
+    const url = get("link");
+    if (url) hits.push({ title: stripHtml(get("title")), url, snippet: stripHtml(get("description")), provider: "Bing RSS" });
+  }
+  return hits.slice(0, 8);
+}
+
+async function pageText(url: string, env: Env) {
+  if (env.BROWSER) {
+    try {
+      const output = await env.BROWSER.quickAction("markdown", { url });
+      if (typeof output === "string") return { text: output.slice(0, 200000), mode: "Browser Run" };
+      if (output instanceof Response) return { text: (await output.text()).slice(0, 200000), mode: "Browser Run" };
+      const record = output as { result?: unknown; markdown?: unknown };
+      const text = clean(record.result || record.markdown || JSON.stringify(output));
+      if (text) return { text: text.slice(0, 200000), mode: "Browser Run" };
+    } catch { /* static fallback below */ }
+  }
+  const response = await fetch(url, { redirect: "follow", headers: { "user-agent": "Mozilla/5.0 QikReach/1.0" } });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return { text: stripHtml((await response.text()).slice(0, 500000)), mode: "Static fetch" };
+}
+
+function extractPublic(text: string) {
+  const emails = [...new Set((text.toLowerCase().match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/g) || [])
+    .filter(item => !item.endsWith("@example.com")))].slice(0, 10);
+  const matches = text.match(/(?:\+?1[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}/g) || [];
+  const phones = [...new Set(matches.map(phoneDigits).filter(item => item.length === 10).map(item => `+1${item}`))].slice(0, 10);
+  return { emails, phones };
+}
+
+async function saveFinding(hit: WebHit, emails: string[], phones: string[], env: Env) {
+  if (!emails.length && !phones.length) return false;
+  const hash = await sha256(`${hit.url}|${emails.join("|")}|${phones.join("|")}`.toLowerCase());
+  await env.DB.prepare("INSERT INTO master_leads (lead_hash,company_name,owner_name,revenue,address,dob,ssn,ein,start_date,all_phones,all_emails,sources,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP) ON CONFLICT(lead_hash) DO UPDATE SET all_phones=excluded.all_phones,all_emails=excluded.all_emails,sources=excluded.sources,updated_at=CURRENT_TIMESTAMP")
+    .bind(hash, hit.title, "", "", hit.url, "", "", "", "", phones.join(" | "), emails.join(" | "), `${hit.provider}: ${hit.url}`).run();
+  return true;
+}
+
+async function api(request: Request, env: Env, url: URL) {
+  if (url.pathname === "/api/health") {
+    try {
+      const count = await env.DB.prepare("SELECT COUNT(*) AS count FROM master_leads").first<{ count: number }>();
+      return json({ ok: true, public_access: true, vault_count: Number(count?.count || 0), browser_run: Boolean(env.BROWSER), brave_configured: Boolean(env.BRAVE_SEARCH_API_KEY) });
+    } catch (error) {
+      return json({ ok: false, error: error instanceof Error ? error.message : "D1 unavailable" }, 500);
+    }
+  }
+
+  if (url.pathname === "/api/search" && request.method === "POST") {
+    const started = Date.now();
+    const body = await request.json() as { query?: string; fields?: SearchFields };
+    const query = buildQuery(clean(body.query), body.fields || {});
+    if (!query) return json({ error: "Enter something to search" }, 400);
+
+    const stages: Array<Record<string, unknown>> = [];
+    const local = await env.DB.prepare("SELECT * FROM master_leads ORDER BY updated_at DESC LIMIT 3000").all<Lead>();
+    const ranked = (local.results || []).map(row => ({ ...row, match_score: scoreLead(query, row) }))
+      .filter(row => Number(row.match_score) >= 34)
+      .sort((a, b) => Number(b.match_score) - Number(a.match_score)).slice(0, 100);
+    stages.push({ stage: "Vault search", status: "complete", matches: ranked.length, total_records: (local.results || []).length });
+
+    let hits: WebHit[] = [];
+    try {
+      hits = await discover(query, env);
+      stages.push({ stage: "Public web discovery", status: "complete", provider: hits[0]?.provider || "none", results: hits.length });
+    } catch (error) {
+      stages.push({ stage: "Public web discovery", status: "error", message: error instanceof Error ? error.message : "Discovery failed" });
+    }
+
+    const sources: Array<Record<string, unknown>> = [];
+    let saved = 0;
+    for (const hit of hits.slice(0, 5)) {
+      try {
+        const page = await pageText(hit.url, env);
+        const found = extractPublic(`${hit.title}\n${hit.snippet}\n${page.text}`);
+        if (await saveFinding(hit, found.emails, found.phones, env)) saved++;
+        sources.push({ ...hit, fetch_mode: page.mode, emails: found.emails, phones: found.phones, status: "checked" });
+      } catch (error) {
+        sources.push({ ...hit, emails: [], phones: [], status: "blocked_or_failed", error: error instanceof Error ? error.message : "Fetch failed" });
+      }
+    }
+    stages.push({ stage: "Page enrichment", status: "complete", checked: sources.length, saved });
+    return json({ ok: true, query, results: ranked, sources, stages, elapsed_ms: Date.now() - started, vault_count: (local.results || []).length });
+  }
+
+  if (url.pathname === "/api/batch" && request.method === "POST") {
+    const file = (await request.formData()).get("file");
+    if (!(file instanceof File) || !file.name.toLowerCase().endsWith(".xlsx")) return json({ error: "Select an .xlsx file" }, 400);
+    if (file.size > MAX_UPLOAD) return json({ error: "Maximum upload is 10 MiB" }, 413);
+    const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
+    const rows = XLSX.utils.sheet_to_json<Lead>(workbook.Sheets[workbook.SheetNames[0]], { defval: "" });
+    if (rows.length > 1000) return json({ error: "Maximum batch is 1,000 rows" }, 413);
+
+    const output = [];
+    for (const row of rows) {
+      const company = valueFor(row, "company", "company name", "business name");
+      const owner = valueFor(row, "owner", "owner name", "contact", "contact name", "name");
+      const phones = normalizePhones(valueFor(row, "phone", "phones", "phone number", "mobile"));
+      const emails = normalizeEmails(valueFor(row, "email", "emails", "email address"));
+      const ein = valueFor(row, "ein");
+      const values = [await sha256([company, owner, phones, emails, ein].join("|").toLowerCase() || crypto.randomUUID()), company, owner,
+        valueFor(row, "revenue", "monthly revenue", "annual revenue"), valueFor(row, "address", "business address"),
+        valueFor(row, "dob", "date of birth"), valueFor(row, "ssn"), ein,
+        valueFor(row, "start date", "business start date"), phones, emails, "uploaded spreadsheet"];
+      await env.DB.prepare("INSERT INTO master_leads VALUES (?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP) ON CONFLICT(lead_hash) DO UPDATE SET company_name=excluded.company_name,owner_name=excluded.owner_name,revenue=excluded.revenue,address=excluded.address,dob=excluded.dob,ssn=excluded.ssn,ein=excluded.ein,start_date=excluded.start_date,all_phones=excluded.all_phones,all_emails=excluded.all_emails,sources=excluded.sources,updated_at=CURRENT_TIMESTAMP")
+        .bind(...values).run();
+      output.push({ ...row, "Normalized Phones": phones, "Validated Emails": emails, "QikReach Sources": "uploaded spreadsheet" });
+    }
+    const result = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(result, XLSX.utils.json_to_sheet(output), "Enriched Leads");
+    return new Response(XLSX.write(result, { bookType: "xlsx", type: "array" }), {
+      headers: {
+        "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "content-disposition": `attachment; filename="qikreach-enriched-${Date.now()}.xlsx"`,
+      },
+    });
+  }
+  return json({ error: "Not found" }, 404);
+}
+
+export default {
+  async fetch(request: Request, env: Env) {
+    try {
+      const url = new URL(request.url);
+      if (url.pathname.startsWith("/api/")) return api(request, env, url);
+      const response = await env.ASSETS.fetch(request);
+      const headers = new Headers(response.headers);
+      headers.set("cache-control", "no-store, max-age=0");
+      return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+    } catch (error) {
+      return json({ error: error instanceof Error ? error.message : "Unexpected worker error" }, 500);
+    }
+  },
+} satisfies ExportedHandler<Env>;
