@@ -3,287 +3,61 @@ import * as XLSX from "xlsx";
 interface Env {
   DB: D1Database;
   ASSETS: Fetcher;
+  BROWSER?: { quickAction(action: string, input: Record<string, unknown>): Promise<unknown> };
   QIKREACH_USERNAME: string;
   QIKREACH_PASSWORD: string;
   QIKREACH_SESSION_SECRET: string;
+  BRAVE_SEARCH_API_KEY?: string;
 }
 
-type LeadRow = Record<string, unknown>;
-type SearchFields = {
-  name?: string;
-  company?: string;
-  phone?: string;
-  email?: string;
-  ein?: string;
-  state?: string;
-  zip?: string;
-  address?: string;
-};
+type Lead = Record<string, unknown>;
+type SearchFields = {name?:string;company?:string;phone?:string;email?:string;ein?:string;state?:string;zip?:string;address?:string};
+type WebHit = {title:string;url:string;snippet:string;provider:string};
 
-const E = new TextEncoder();
-const MAX = 10 * 1024 * 1024;
-const STATES: Record<string, string> = {
-  alabama:"al",alaska:"ak",arizona:"az",arkansas:"ar",california:"ca",colorado:"co",connecticut:"ct",delaware:"de",florida:"fl",georgia:"ga",hawaii:"hi",idaho:"id",illinois:"il",indiana:"in",iowa:"ia",kansas:"ks",kentucky:"ky",louisiana:"la",maine:"me",maryland:"md",massachusetts:"ma",michigan:"mi",minnesota:"mn",mississippi:"ms",missouri:"mo",montana:"mt",nebraska:"ne",nevada:"nv","new hampshire":"nh","new jersey":"nj","new mexico":"nm","new york":"ny","north carolina":"nc","north dakota":"nd",ohio:"oh",oklahoma:"ok",oregon:"or",pennsylvania:"pa","rhode island":"ri","south carolina":"sc","south dakota":"sd",tennessee:"tn",texas:"tx",utah:"ut",vermont:"vt",virginia:"va",washington:"wa","west virginia":"wv",wisconsin:"wi",wyoming:"wy","district of columbia":"dc"
-};
-const STATE_CODES = new Set(Object.values(STATES));
+const E=new TextEncoder(),MAX=10*1024*1024;
+const J=(v:unknown,s=200)=>new Response(JSON.stringify(v),{status:s,headers:{"content-type":"application/json;charset=UTF-8","cache-control":"no-store"}});
+const C=(v:unknown)=>v==null?"":String(v).trim();
+const norm=(v:string)=>C(v).toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g,"").replace(/&/g," and ").replace(/[^a-z0-9]+/g," ").trim().replace(/\s+/g," ");
+const compact=(v:string)=>norm(v).replace(/\s/g,"");
+const digits=(v:string)=>C(v).replace(/\D/g,"");
+const phoneDigits=(v:string)=>{const d=digits(v);return d.length===11&&d.startsWith("1")?d.slice(1):d};
+const emailNorm=(v:string)=>C(v).toLowerCase().replace(/\s+/g,"").replace(/[;,]+$/,"");
+const xmlDecode=(v:string)=>v.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g,"$1").replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&#39;/g,"'");
+const strip=(v:string)=>v.replace(/<script[\s\S]*?<\/script>/gi," ").replace(/<style[\s\S]*?<\/style>/gi," ").replace(/<[^>]+>/g," ").replace(/\s+/g," ").trim();
 
-const J = (value: unknown, status = 200) => new Response(JSON.stringify(value), {
-  status,
-  headers: { "content-type": "application/json;charset=UTF-8", "cache-control": "no-store" },
-});
-const C = (value: unknown) => value == null ? "" : String(value).trim();
-const normalizeText = (value: string) => C(value).toLowerCase().normalize("NFKD")
-  .replace(/[\u0300-\u036f]/g, "").replace(/&/g, " and ")
-  .replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
-const compact = (value: string) => normalizeText(value).replace(/\s/g, "");
-const onlyDigits = (value: string) => C(value).replace(/[^0-9]/g, "");
-const phoneDigits = (value: string) => {
-  const digits = onlyDigits(value);
-  return digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits;
-};
-const normalizeEmail = (value: string) => C(value).toLowerCase().replace(/\s+/g, "").replace(/[;,]+$/, "");
+async function mac(secret:string,value:string){const k=await crypto.subtle.importKey("raw",E.encode(secret),{name:"HMAC",hash:"SHA-256"},false,["sign"]);return [...new Uint8Array(await crypto.subtle.sign("HMAC",k,E.encode(value)))].map(x=>x.toString(16).padStart(2,"0")).join("")}
+function cookie(r:Request,name:string){for(const p of (r.headers.get("cookie")||"").split(";")){const [k,...v]=p.trim().split("=");if(k===name)return decodeURIComponent(v.join("="))}return""}
+async function auth(r:Request,e:Env){const p=cookie(r,"qikreach_session").split("|");return p.length===3&&p[0]===e.QIKREACH_USERNAME&&Number(p[1])>Date.now()/1000&&p[2]===await mac(e.QIKREACH_SESSION_SECRET,`${p[0]}|${p[1]}`)}
+async function sha(v:string){return [...new Uint8Array(await crypto.subtle.digest("SHA-256",E.encode(v)))].map(x=>x.toString(16).padStart(2,"0")).join("")}
+function valueFor(row:Lead,...names:string[]){const wanted=new Set(names.map(compact)),key=Object.keys(row).find(k=>wanted.has(compact(k)));return C(key?row[key]:"")}
+function normalizePhones(v:string){const seen=new Set<string>();return C(v).split(/[|,;\n]+/).map(x=>{const d=phoneDigits(x);return d.length===10?`+1${d}`:""}).filter(x=>x&&!seen.has(x)&&seen.add(x)).join(" | ")}
+function normalizeEmails(v:string){return [...new Set(C(v).toLowerCase().match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/g)||[])].join(" | ")}
+function distance(a:string,b:string){if(a===b)return 0;if(!a.length)return b.length;if(!b.length)return a.length;const p=Array.from({length:b.length+1},(_,i)=>i);for(let i=1;i<=a.length;i++){let left=i,diag=i-1;for(let j=1;j<=b.length;j++){const up=p[j],next=a[i-1]===b[j-1]?diag:Math.min(diag,up,left)+1;diag=up;p[j]=next;left=next}}return p[b.length]}
+function textScore(q:string,v:string){const a=norm(q),b=norm(v),ac=compact(q),bc=compact(v);if(!a||!b)return 0;if(a===b||ac===bc)return 100;if(b.includes(a)||bc.includes(ac))return 90;const r=1-distance(a.slice(0,96),b.slice(0,96))/Math.max(a.length,b.length);if(r>=.88)return 72;if(r>=.78)return 55;if(r>=.68&&Math.min(a.length,b.length)>=5)return 35;return 0}
+function emailScore(q:string,stored:string){const x=emailNorm(q);if(!x.includes("@"))return 0;let best=0;for(const c of C(stored).toLowerCase().split(/[|,;\s]+/).filter(x=>x.includes("@"))){if(c===x)return 100;const [ql="",qd=""]=x.split("@"),[cl="",cd=""]=c.split("@");if(!ql||!qd||!cl||!cd)continue;const lr=1-distance(ql,cl)/Math.max(ql.length,cl.length),dr=1-distance(qd,cd)/Math.max(qd.length,cd.length);if(ql===cl&&dr>=.72)best=Math.max(best,88);else if(qd===cd&&lr>=.72)best=Math.max(best,84);else if(lr>=.8&&dr>=.8)best=Math.max(best,76)}return best}
+function buildQuery(q:string,f:SearchFields){return [q,f.name,f.company,f.phone,f.email,f.ein,f.address,f.state,f.zip].map(C).filter(Boolean).join(" ").slice(0,300)}
+function scoreLead(query:string,row:Lead){let s=0;const pd=phoneDigits(query),ed=digits(query);if(pd.length>=4&&phoneDigits(C(row.all_phones)).includes(pd))s=Math.max(s,pd.length>=10?100:82);if(ed.length>=4&&digits(C(row.ein)).includes(ed))s=Math.max(s,ed.length>=9?100:82);s=Math.max(s,emailScore(query,C(row.all_emails)),textScore(query,C(row.company_name)),textScore(query,C(row.owner_name)),textScore(query,C(row.address)));return s}
 
-async function mac(secret: string, value: string) {
-  const key = await crypto.subtle.importKey("raw", E.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-  return [...new Uint8Array(await crypto.subtle.sign("HMAC", key, E.encode(value)))]
-    .map(x => x.toString(16).padStart(2, "0")).join("");
-}
-function cookie(request: Request, name: string) {
-  for (const part of (request.headers.get("cookie") || "").split(";")) {
-    const [key, ...value] = part.trim().split("=");
-    if (key === name) return decodeURIComponent(value.join("="));
+async function discoverWithBrave(query:string,key?:string):Promise<WebHit[]>{if(!key)return[];const r=await fetch(`https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=8`,{headers:{Accept:"application/json","X-Subscription-Token":key}});if(!r.ok)throw new Error(`Brave search failed (${r.status})`);const j=await r.json() as {web?:{results?:Array<{title?:string;url?:string;description?:string}>}};return (j.web?.results||[]).filter(x=>x.url).map(x=>({title:C(x.title),url:C(x.url),snippet:C(x.description),provider:"Brave Search"}))}
+async function discoverWithBingRss(query:string):Promise<WebHit[]>{const r=await fetch(`https://www.bing.com/search?format=rss&q=${encodeURIComponent(query)}`,{headers:{"user-agent":"Mozilla/5.0 QikReach/1.0"}});if(!r.ok)throw new Error(`Bing discovery failed (${r.status})`);const xml=await r.text(),hits:WebHit[]=[];for(const m of xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)){const item=m[1],get=(tag:string)=>xmlDecode((item.match(new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`,`i`))||[])[1]||"");const url=get("link");if(url)hits.push({title:strip(get("title")),url,snippet:strip(get("description")),provider:"Bing RSS"})}return hits.slice(0,8)}
+async function pageText(url:string,e:Env):Promise<{text:string;mode:string}>{if(e.BROWSER){try{const out=await e.BROWSER.quickAction("markdown",{url});if(typeof out==="string")return{text:out.slice(0,200000),mode:"Browser Run"};if(out instanceof Response)return{text:(await out.text()).slice(0,200000),mode:"Browser Run"};const anyOut=out as {result?:unknown;markdown?:unknown};const text=C(anyOut.result||anyOut.markdown||JSON.stringify(out));if(text)return{text:text.slice(0,200000),mode:"Browser Run"}}catch{}}
+const r=await fetch(url,{redirect:"follow",headers:{"user-agent":"Mozilla/5.0 QikReach/1.0"}});if(!r.ok)throw new Error(`HTTP ${r.status}`);return{text:strip((await r.text()).slice(0,500000)),mode:"Static fetch"}}
+function extractPublic(text:string){const emails=[...new Set((text.toLowerCase().match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/g)||[]).filter(x=>!x.endsWith("@example.com")))].slice(0,10);const raw=text.match(/(?:\+?1[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}/g)||[];const phones=[...new Set(raw.map(phoneDigits).filter(x=>x.length===10).map(x=>`+1${x}`))].slice(0,10);return{emails,phones}}
+async function saveFinding(hit:WebHit,emails:string[],phones:string[],e:Env){if(!emails.length&&!phones.length)return false;const hash=await sha(`${hit.url}|${emails.join("|")}|${phones.join("|")}`.toLowerCase());await e.DB.prepare("INSERT INTO master_leads (lead_hash,company_name,owner_name,revenue,address,dob,ssn,ein,start_date,all_phones,all_emails,sources,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP) ON CONFLICT(lead_hash) DO UPDATE SET all_phones=excluded.all_phones,all_emails=excluded.all_emails,sources=excluded.sources,updated_at=CURRENT_TIMESTAMP").bind(hash,hit.title,"","",hit.url,"","","","",phones.join(" | "),emails.join(" | "),`${hit.provider}: ${hit.url}`).run();return true}
+
+async function api(r:Request,e:Env,u:URL){
+  if(u.pathname==="/api/health"){try{const c=await e.DB.prepare("SELECT COUNT(*) AS count FROM master_leads").first<{count:number}>();return J({ok:true,vault_count:Number(c?.count||0),browser_run:Boolean(e.BROWSER),brave_configured:Boolean(e.BRAVE_SEARCH_API_KEY)})}catch(err){return J({ok:false,error:err instanceof Error?err.message:"D1 unavailable"},500)}}
+  if(!await auth(r,e))return J({error:"Authentication required"},401);
+  if(u.pathname==="/api/search"&&r.method==="POST"){
+    const started=Date.now(),body=await r.json() as {query?:string;fields?:SearchFields},query=buildQuery(C(body.query),body.fields||{});if(!query)return J({error:"Enter something to search"},400);
+    const stages:Array<Record<string,unknown>>=[];const local=await e.DB.prepare("SELECT * FROM master_leads ORDER BY updated_at DESC LIMIT 3000").all<Lead>();const ranked=(local.results||[]).map(row=>({...row,match_score:scoreLead(query,row)})).filter(x=>Number(x.match_score)>=34).sort((a,b)=>Number(b.match_score)-Number(a.match_score)).slice(0,100);stages.push({stage:"Vault search",status:"complete",matches:ranked.length,total_records:(local.results||[]).length});
+    let hits:WebHit[]=[];try{hits=e.BRAVE_SEARCH_API_KEY?await discoverWithBrave(query,e.BRAVE_SEARCH_API_KEY):await discoverWithBingRss(query);stages.push({stage:"Public web discovery",status:"complete",provider:hits[0]?.provider||"none",results:hits.length})}catch(err){stages.push({stage:"Public web discovery",status:"error",message:err instanceof Error?err.message:"Discovery failed"})}
+    const sources=[];let saved=0;for(const hit of hits.slice(0,5)){try{const page=await pageText(hit.url,e),found=extractPublic(`${hit.title}\n${hit.snippet}\n${page.text}`),didSave=await saveFinding(hit,found.emails,found.phones,e);if(didSave)saved++;sources.push({...hit,fetch_mode:page.mode,emails:found.emails,phones:found.phones,status:"checked"})}catch(err){sources.push({...hit,emails:[],phones:[],status:"blocked_or_failed",error:err instanceof Error?err.message:"Fetch failed"})}}
+    stages.push({stage:"Page enrichment",status:"complete",checked:sources.length,saved});
+    return J({ok:true,query,results:ranked,sources,stages,elapsed_ms:Date.now()-started,vault_count:(local.results||[]).length});
   }
-  return "";
-}
-async function auth(request: Request, env: Env) {
-  const parts = cookie(request, "qikreach_session").split("|");
-  return parts.length === 3 && parts[0] === env.QIKREACH_USERNAME
-    && Number(parts[1]) > Date.now() / 1000
-    && parts[2] === await mac(env.QIKREACH_SESSION_SECRET, `${parts[0]}|${parts[1]}`);
+  if(u.pathname==="/api/batch"&&r.method==="POST"){const f=(await r.formData()).get("file");if(!(f instanceof File)||!f.name.toLowerCase().endsWith(".xlsx"))return J({error:"Select an .xlsx file"},400);if(f.size>MAX)return J({error:"Maximum upload is 10 MiB"},413);const w=XLSX.read(await f.arrayBuffer(),{type:"array"}),rows=XLSX.utils.sheet_to_json<Lead>(w.Sheets[w.SheetNames[0]],{defval:""});if(rows.length>1000)return J({error:"Maximum batch is 1,000 rows"},413);const out=[];for(const row of rows){const company=valueFor(row,"company","company name","business name"),owner=valueFor(row,"owner","owner name","contact","contact name","name"),phones=normalizePhones(valueFor(row,"phone","phones","phone number","mobile")),emails=normalizeEmails(valueFor(row,"email","emails","email address")),ein=valueFor(row,"ein"),lead=[await sha([company,owner,phones,emails,ein].join("|").toLowerCase()||crypto.randomUUID()),company,owner,valueFor(row,"revenue","monthly revenue","annual revenue"),valueFor(row,"address","business address"),valueFor(row,"dob","date of birth"),valueFor(row,"ssn"),ein,valueFor(row,"start date","business start date"),phones,emails,"uploaded spreadsheet"];await e.DB.prepare("INSERT INTO master_leads VALUES (?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP) ON CONFLICT(lead_hash) DO UPDATE SET company_name=excluded.company_name,owner_name=excluded.owner_name,revenue=excluded.revenue,address=excluded.address,dob=excluded.dob,ssn=excluded.ssn,ein=excluded.ein,start_date=excluded.start_date,all_phones=excluded.all_phones,all_emails=excluded.all_emails,sources=excluded.sources,updated_at=CURRENT_TIMESTAMP").bind(...lead).run();out.push({...row,"Normalized Phones":phones,"Validated Emails":emails,"QikReach Sources":"uploaded spreadsheet"})}const o=XLSX.utils.book_new();XLSX.utils.book_append_sheet(o,XLSX.utils.json_to_sheet(out),"Enriched Leads");return new Response(XLSX.write(o,{bookType:"xlsx",type:"array"}),{headers:{"content-type":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","content-disposition":`attachment; filename="qikreach-enriched-${Date.now()}.xlsx"`}})}
+  return J({error:"Not found"},404)
 }
 
-function valueFor(row: LeadRow, ...names: string[]) {
-  const wanted = new Set(names.map(compact));
-  const key = Object.keys(row).find(candidate => wanted.has(compact(candidate)));
-  return C(key ? row[key] : "");
-}
-function normalizePhones(value: string) {
-  const seen = new Set<string>();
-  return C(value).split(/[|,;\n]+/).map(item => {
-    const digits = phoneDigits(item);
-    return digits.length === 10 ? `+1${digits}` : "";
-  }).filter(item => item && !seen.has(item) && seen.add(item)).join(" | ");
-}
-function normalizeEmails(value: string) {
-  return [...new Set(C(value).toLowerCase().match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/g) || [])].join(" | ");
-}
-function distance(a: string, b: string) {
-  if (a === b) return 0;
-  if (!a.length) return b.length;
-  if (!b.length) return a.length;
-  const previous = Array.from({ length: b.length + 1 }, (_, index) => index);
-  for (let i = 1; i <= a.length; i++) {
-    let left = i, diagonal = i - 1;
-    for (let j = 1; j <= b.length; j++) {
-      const up = previous[j];
-      const next = a[i - 1] === b[j - 1] ? diagonal : Math.min(diagonal, up, left) + 1;
-      diagonal = up; previous[j] = next; left = next;
-    }
-  }
-  return previous[b.length];
-}
-function similarity(a: string, b: string) {
-  if (!a || !b) return 0;
-  return 1 - distance(a.slice(0, 96), b.slice(0, 96)) / Math.max(a.length, b.length);
-}
-function textScore(query: string, value: string) {
-  const q = normalizeText(query), v = normalizeText(value), qc = compact(query), vc = compact(value);
-  if (!q || !v) return 0;
-  if (q === v || qc === vc) return 100;
-  if (v.includes(q) || vc.includes(qc)) return 90;
-  if (q.includes(v) && v.length >= 4) return 75;
-  const queryTokens = q.split(" ").filter(Boolean), valueTokens = v.split(" ").filter(Boolean);
-  let tokenScore = 0;
-  for (const queryToken of queryTokens) {
-    const best = Math.max(...valueTokens.map(valueToken => {
-      if (valueToken === queryToken) return 1;
-      if (valueToken.includes(queryToken) || queryToken.includes(valueToken)) return .9;
-      return similarity(queryToken, valueToken);
-    }), 0);
-    if (best >= .72) tokenScore += best;
-  }
-  if (queryTokens.length && tokenScore) {
-    const ratio = tokenScore / queryTokens.length;
-    if (ratio >= .95) return 82;
-    if (ratio >= .8) return 68;
-    if (ratio >= .65) return 45;
-  }
-  const ratio = similarity(q, v);
-  if (ratio >= .88) return 72;
-  if (ratio >= .78) return 55;
-  if (ratio >= .68 && Math.min(q.length, v.length) >= 5) return 35;
-  return 0;
-}
-function emailScore(query: string, stored: string) {
-  const q = normalizeEmail(query);
-  if (!q.includes("@")) return 0;
-  const emails = C(stored).toLowerCase().split(/[|,;\s]+/).filter(item => item.includes("@"));
-  let best = 0;
-  for (const candidate of emails) {
-    if (candidate === q) return 100;
-    const [qLocal = "", qDomain = ""] = q.split("@");
-    const [cLocal = "", cDomain = ""] = candidate.split("@");
-    if (!qLocal || !qDomain || !cLocal || !cDomain) continue;
-    const local = similarity(qLocal, cLocal), domain = similarity(qDomain, cDomain);
-    if (qLocal === cLocal && domain >= .72) best = Math.max(best, 88);
-    else if (qDomain === cDomain && local >= .72) best = Math.max(best, 84);
-    else if (local >= .8 && domain >= .8) best = Math.max(best, 76);
-  }
-  return best;
-}
-function stateMatch(value: string, state: string) {
-  const address = normalizeText(value), requested = normalizeText(state);
-  const code = STATES[requested] || (STATE_CODES.has(requested) ? requested : "");
-  if (!requested) return true;
-  if (address.includes(requested)) return true;
-  if (code && new RegExp(`(^|\\s)${code}(\\s|$)`).test(address)) return true;
-  return textScore(requested, address) >= 68;
-}
-function parseNaturalQuery(query: string) {
-  let text = normalizeText(query);
-  let state = "", zip = "";
-  const zipMatch = text.match(/\b\d{5}(?:\d{4})?\b/);
-  if (zipMatch) { zip = zipMatch[0].slice(0, 5); text = text.replace(zipMatch[0], " "); }
-  const names = Object.keys(STATES).sort((a, b) => b.length - a.length);
-  for (const name of names) {
-    const pattern = new RegExp(`(?:\\bin\\s+|\\bfrom\\s+|\\b)${name}\\b`);
-    if (pattern.test(text)) { state = name; text = text.replace(pattern, " "); break; }
-  }
-  if (!state) {
-    const tokens = text.split(" ");
-    const last = tokens[tokens.length - 1];
-    if (STATE_CODES.has(last)) { state = last; tokens.pop(); text = tokens.join(" "); }
-  }
-  text = text.replace(/\b(in|from|near|located|at)\b/g, " ").replace(/\s+/g, " ").trim();
-  return { text, state, zip };
-}
-function fieldPass(value: string, query: string, threshold = 55) {
-  return !C(query) || textScore(query, value) >= threshold;
-}
-function scoreLead(query: string, fields: SearchFields, row: LeadRow) {
-  const natural = parseNaturalQuery(query);
-  const address = C(row.address), company = C(row.company_name), owner = C(row.owner_name);
-  const phone = C(row.all_phones), email = C(row.all_emails), ein = C(row.ein);
-  const requestedState = C(fields.state) || natural.state;
-  const requestedZip = onlyDigits(C(fields.zip) || natural.zip).slice(0, 5);
-
-  if (requestedState && !stateMatch(address, requestedState)) return 0;
-  if (requestedZip && !onlyDigits(address).includes(requestedZip)) return 0;
-  if (!fieldPass(owner, C(fields.name), 45)) return 0;
-  if (!fieldPass(company, C(fields.company), 45)) return 0;
-  if (!fieldPass(address, C(fields.address), 45)) return 0;
-  if (C(fields.phone) && !phoneDigits(phone).includes(phoneDigits(C(fields.phone)))) return 0;
-  if (C(fields.ein) && !onlyDigits(ein).includes(onlyDigits(C(fields.ein)))) return 0;
-  if (C(fields.email) && emailScore(C(fields.email), email) < 72) return 0;
-
-  let score = 0;
-  const main = natural.text;
-  const queryDigits = phoneDigits(main);
-  if (queryDigits.length >= 4) {
-    if (phoneDigits(phone).includes(queryDigits)) score = Math.max(score, queryDigits.length >= 10 ? 100 : 82);
-    if (onlyDigits(ein).includes(onlyDigits(main))) score = Math.max(score, onlyDigits(main).length >= 9 ? 100 : 82);
-  }
-  score = Math.max(score, emailScore(main, email), textScore(main, owner), textScore(main, company), textScore(main, address), textScore(main, ein));
-  if (!main && Object.values(fields).some(value => C(value))) score = 70;
-  if (requestedState) score += 12;
-  if (requestedZip) score += 15;
-  if (C(fields.name)) score += 10;
-  if (C(fields.company)) score += 10;
-  return Math.min(score, 120);
-}
-function identifyQuery(query: string, fields: SearchFields) {
-  const parsed = parseNaturalQuery(query), raw = C(query), digits = phoneDigits(raw);
-  let type = "name/company/text";
-  if (raw.includes("@")) type = "email";
-  else if (digits.length === 10) type = "phone";
-  else if (digits.length === 9 && onlyDigits(raw).length >= 9) type = "EIN";
-  return { type, normalized: parsed.text || normalizeText(raw), state: C(fields.state) || parsed.state, zip: C(fields.zip) || parsed.zip };
-}
-async function sha(value: string) {
-  return [...new Uint8Array(await crypto.subtle.digest("SHA-256", E.encode(value)))]
-    .map(x => x.toString(16).padStart(2, "0")).join("");
-}
-
-async function api(request: Request, env: Env, url: URL) {
-  if (!await auth(request, env)) return J({ error: "Authentication required" }, 401);
-  if (url.pathname === "/api/health") return J({ ok: true });
-  if (url.pathname === "/api/search" && request.method === "POST") {
-    try {
-      const body = await request.json() as { query?: string; fields?: SearchFields };
-      const raw = C(body.query).slice(0, 200), fields = body.fields || {};
-      if (!raw && !Object.values(fields).some(value => C(value))) return J({ error: "Enter a search or at least one advanced field" }, 400);
-      const result = await env.DB.prepare("SELECT * FROM master_leads ORDER BY updated_at DESC LIMIT 2000").all();
-      const rows = (result.results || []) as LeadRow[];
-      const ranked = rows.map(row => ({ row, score: scoreLead(raw, fields, row) }))
-        .filter(item => item.score >= 34).sort((a, b) => b.score - a.score).slice(0, 100);
-      const interpreted = identifyQuery(raw, fields);
-      return J({ query: raw, interpreted_type: interpreted.type, normalized_query: interpreted.normalized,
-        interpreted_state: interpreted.state, interpreted_zip: interpreted.zip,
-        results: ranked.map(item => ({ ...item.row, match_score: item.score })) });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Search failed";
-      return J({ error: `Search could not be completed: ${message}` }, 500);
-    }
-  }
-  if (url.pathname === "/api/batch" && request.method === "POST") {
-    const file = (await request.formData()).get("file");
-    if (!(file instanceof File) || !file.name.toLowerCase().endsWith(".xlsx")) return J({ error: "Select an .xlsx file" }, 400);
-    if (file.size > MAX) return J({ error: "Maximum upload is 10 MiB" }, 413);
-    const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
-    const rows = XLSX.utils.sheet_to_json<LeadRow>(workbook.Sheets[workbook.SheetNames[0]], { defval: "" });
-    if (rows.length > 1000) return J({ error: "Maximum batch is 1,000 rows" }, 413);
-    const output = [];
-    for (const row of rows) {
-      const company = valueFor(row, "company", "company name", "business name");
-      const owner = valueFor(row, "owner", "owner name", "contact", "contact name", "name");
-      const phones = normalizePhones(valueFor(row, "phone", "phones", "phone number", "mobile"));
-      const emails = normalizeEmails(valueFor(row, "email", "emails", "email address"));
-      const ein = valueFor(row, "ein");
-      const lead = [await sha([company, owner, phones, emails, ein].join("|").toLowerCase() || crypto.randomUUID()), company, owner,
-        valueFor(row, "revenue", "monthly revenue", "annual revenue"), valueFor(row, "address", "business address"),
-        valueFor(row, "dob", "date of birth"), valueFor(row, "ssn"), ein,
-        valueFor(row, "start date", "business start date"), phones, emails, "uploaded spreadsheet"];
-      await env.DB.prepare("INSERT INTO master_leads VALUES (?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP) ON CONFLICT(lead_hash) DO UPDATE SET company_name=excluded.company_name,owner_name=excluded.owner_name,revenue=excluded.revenue,address=excluded.address,dob=excluded.dob,ssn=excluded.ssn,ein=excluded.ein,start_date=excluded.start_date,all_phones=excluded.all_phones,all_emails=excluded.all_emails,sources=excluded.sources,updated_at=CURRENT_TIMESTAMP").bind(...lead).run();
-      output.push({ ...row, "Normalized Phones": phones, "Validated Emails": emails, "QikReach Sources": "uploaded spreadsheet" });
-    }
-    const resultWorkbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(resultWorkbook, XLSX.utils.json_to_sheet(output), "Enriched Leads");
-    return new Response(XLSX.write(resultWorkbook, { bookType: "xlsx", type: "array" }), {
-      headers: { "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "content-disposition": `attachment; filename="qikreach-enriched-${Date.now()}.xlsx"` },
-    });
-  }
-  return J({ error: "Not found" }, 404);
-}
-
-export default {
-  async fetch(request: Request, env: Env) {
-    try {
-      const url = new URL(request.url);
-      if (!env.QIKREACH_PASSWORD || !env.QIKREACH_SESSION_SECRET) return new Response("Missing required secrets", { status: 500 });
-      if (url.pathname === "/login" && request.method === "POST") {
-        const form = await request.formData();
-        if (C(form.get("username")) !== env.QIKREACH_USERNAME || C(form.get("password")) !== env.QIKREACH_PASSWORD) return Response.redirect(new URL("/?error=1", url), 303);
-        const expires = Math.floor(Date.now() / 1000) + 43200, body = `${env.QIKREACH_USERNAME}|${expires}`;
-        const token = `${body}|${await mac(env.QIKREACH_SESSION_SECRET, body)}`;
-        return new Response(null, { status: 303, headers: { location: "/", "set-cookie": `qikreach_session=${encodeURIComponent(token)}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=43200` } });
-      }
-      if (url.pathname === "/logout") return new Response(null, { status: 303, headers: { location: "/", "set-cookie": "qikreach_session=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0" } });
-      if (url.pathname.startsWith("/api/")) return api(request, env, url);
-      if (!await auth(request, env)) return env.ASSETS.fetch(new Request(new URL("/login.html", url).toString(), request));
-      return env.ASSETS.fetch(request);
-    } catch (error) {
-      return J({ error: error instanceof Error ? error.message : "Unexpected worker error" }, 500);
-    }
-  },
-} satisfies ExportedHandler<Env>;
+export default{async fetch(r:Request,e:Env){try{const u=new URL(r.url);if(!e.QIKREACH_PASSWORD||!e.QIKREACH_SESSION_SECRET)return J({error:"Missing required secrets"},500);if(u.pathname==="/login"&&r.method==="POST"){const f=await r.formData();if(C(f.get("username"))!==e.QIKREACH_USERNAME||C(f.get("password"))!==e.QIKREACH_PASSWORD)return Response.redirect(new URL("/?error=1",u),303);const exp=Math.floor(Date.now()/1000)+43200,body=`${e.QIKREACH_USERNAME}|${exp}`,token=`${body}|${await mac(e.QIKREACH_SESSION_SECRET,body)}`;return new Response(null,{status:303,headers:{location:"/","set-cookie":`qikreach_session=${encodeURIComponent(token)}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=43200`}})}if(u.pathname==="/logout")return new Response(null,{status:303,headers:{location:"/","set-cookie":"qikreach_session=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0"}});if(u.pathname.startsWith("/api/"))return api(r,e,u);if(!await auth(r,e))return e.ASSETS.fetch(new Request(new URL("/login.html",u).toString(),r));return e.ASSETS.fetch(r)}catch(err){return J({error:err instanceof Error?err.message:"Unexpected worker error"},500)}}} satisfies ExportedHandler<Env>;
