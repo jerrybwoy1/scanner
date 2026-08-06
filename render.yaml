@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: qikreach-python-backend
+    runtime: docker
+    plan: free
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: APP_ORIGIN
+        value: https://scanner.jerrylang.workers.dev
