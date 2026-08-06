@@ -1,1 +1,151 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>QikReach Data Refinery</title><style>:root{color-scheme:dark;--b:#030712;--p:#0b0f19;--f:#111827;--g:#00ffcc;--r:#ff3158;--y:#ffd166}*{box-sizing:border-box;font-family:ui-monospace,monospace}html,body{min-height:100%;touch-action:manipulation}body{margin:0;padding:14px;background:var(--b);color:var(--g)}h1{text-align:center;font-size:clamp(20px,5vw,30px);border-bottom:2px solid var(--g);padding-bottom:12px}.grid{max-width:1200px;margin:auto;display:grid;grid-template-columns:1fr 1.5fr;gap:14px}.card{position:relative;background:var(--p);border:1px solid var(--g);padding:16px}input,button,a{width:100%;min-height:46px;margin:6px 0;padding:11px;border:1px solid var(--g);background:var(--f);color:var(--g);font-size:16px;border-radius:0}input{position:relative;z-index:2;display:block;pointer-events:auto;touch-action:manipulation;cursor:text;-webkit-user-select:text;user-select:text;-webkit-appearance:none;appearance:none}input[type=file]{cursor:pointer}button,a{position:relative;z-index:1;cursor:pointer;text-align:center;text-decoration:none;font-weight:800;touch-action:manipulation}button:hover,a:hover{background:var(--g);color:#00110d}button:disabled{cursor:wait;opacity:.65}.red{border-color:var(--r);color:var(--r)}#log{height:180px;overflow:auto;background:#000;padding:10px;font-size:12px;white-space:pre-wrap}.table{overflow:auto}table{width:100%;border-collapse:collapse}th,td{border:1px solid var(--g);padding:7px;text-align:left;font-size:12px}.status{min-height:24px;color:#aab2c0}.search-status{min-height:42px;margin:8px 0 4px;padding:10px 12px;border:1px solid #334155;background:#070b12;color:#aab2c0;font-size:14px;line-height:1.4}.search-status.working{border-color:var(--y);color:var(--y)}.search-status.success{border-color:var(--g);color:var(--g)}.search-status.error{border-color:var(--r);color:var(--r)}details{margin:8px 0;border:1px solid #334155;background:#070b12}summary{cursor:pointer;padding:12px;font-weight:800;list-style:none}summary::-webkit-details-marker{display:none}summary:after{content:"+";float:right}details[open] summary:after{content:"−"}.advanced{padding:0 12px 12px}.advanced-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.advanced input{margin:0}.advanced-actions{display:flex;gap:8px}.advanced-actions button{margin-top:8px}.muted{color:#94a3b8;font-size:12px;line-height:1.4}.match-note{display:block;color:#94a3b8;margin-top:3px}.match-score{white-space:nowrap}@media(max-width:800px){.grid{grid-template-columns:1fr}body{padding:9px}.card{overflow:visible}input{min-height:52px}.advanced-grid{grid-template-columns:1fr}.advanced-actions{display:grid;grid-template-columns:1fr 1fr}}</style></head><body><h1>QIKREACH DATA REFINERY</h1><main class="grid"><section class="card"><h2>Spreadsheet Enrichment</h2><input id="file" type="file" accept=".xlsx"><button id="batch" class="red" type="button">PROCESS WORKBOOK</button><div id="status" class="status"></div><div id="download"></div><p><a href="/logout">LOG OUT</a></p></section><section class="card"><h2>Cloud Vault Search</h2><input id="q" type="search" inputmode="search" enterkeyhint="search" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Example: John Doe in Connecticut or John Doe 06902" aria-label="Search cloud vault"><button id="search" type="button">SEARCH</button><details id="advanced"><summary>ADVANCED SEARCH</summary><div class="advanced"><div class="advanced-grid"><input id="name" placeholder="Name"><input id="company" placeholder="Company"><input id="phone" inputmode="tel" placeholder="Phone"><input id="email" inputmode="email" placeholder="Email"><input id="ein" placeholder="EIN"><input id="state" placeholder="State or abbreviation"><input id="zip" inputmode="numeric" placeholder="ZIP code"><input id="address" placeholder="Address, city or street"></div><div class="advanced-actions"><button id="clearAdvanced" type="button">CLEAR</button><button id="advancedSearch" type="button">SEARCH FIELDS</button></div><div class="muted">Multiple fields narrow the same search. Misspellings and common formatting differences are normalized.</div></div></details><div id="searchStatus" class="search-status" role="status" aria-live="polite">Type a natural search or open Advanced Search for multiple fields.</div><div id="results"></div><h3>Activity</h3><div id="log"></div></section></main><script>"use strict";const $=x=>document.getElementById(x),log=m=>{$("log").textContent+=`[${new Date().toLocaleTimeString()}] ${m}\n`},esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])),setSearchStatus=(message,state="")=>{const el=$("searchStatus");el.textContent=message;el.className=`search-status ${state}`.trim()};async function readJson(response){const text=await response.text();if(!text)return{};try{return JSON.parse(text)}catch{return{error:text.slice(0,300)}}}function fields(){return{name:$("name").value.trim(),company:$("company").value.trim(),phone:$("phone").value.trim(),email:$("email").value.trim(),ein:$("ein").value.trim(),state:$("state").value.trim(),zip:$("zip").value.trim(),address:$("address").value.trim()}}function hasFields(f){return Object.values(f).some(Boolean)}async function search(){const q=$("q").value.trim(),f=fields(),button=$("search");if(!q&&!hasFields(f)){setSearchStatus("Enter a natural search or at least one advanced field.","error");$("q").focus();return}button.disabled=true;button.textContent="SEARCHING…";setSearchStatus("Searching and normalizing your criteria…","working");$("results").innerHTML="";try{const r=await fetch(window.location.origin+"/api/search",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json","accept":"application/json"},body:JSON.stringify({query:q,fields:f})});if(r.status===401){setSearchStatus("Your session expired. Reloading login…","error");window.location.reload();return}const d=await readJson(r);if(!r.ok)throw new Error(d.error||`Search failed (${r.status})`);const rows=Array.isArray(d.results)?d.results:[],parts=[];if(d.normalized_query)parts.push(`text: ${d.normalized_query}`);if(d.interpreted_state)parts.push(`state: ${d.interpreted_state}`);if(d.interpreted_zip)parts.push(`ZIP: ${d.interpreted_zip}`);const interpreted=parts.length?` Interpreted ${parts.join(", ")}.`:"";if(rows.length){$("results").innerHTML=`<div class=table><table><tr><th>Company</th><th>Owner</th><th>Address</th><th>Phone</th><th>Email</th><th>Revenue</th><th>Match</th></tr>${rows.map(x=>`<tr><td>${esc(x.company_name)}</td><td>${esc(x.owner_name)}</td><td>${esc(x.address)}</td><td>${esc(x.all_phones)}</td><td>${esc(x.all_emails)}</td><td>${esc(x.revenue)}</td><td class=match-score>${esc(x.match_score)}%</td></tr>`).join("")}</table></div>`;setSearchStatus(`Found ${rows.length} possible match${rows.length===1?"":"es"}.${interpreted}`,"success")}else setSearchStatus(`No matches found.${interpreted} Try fewer filters or another spelling.`,"error");log(`Search: ${rows.length} result(s)${interpreted}`)}catch(error){const message=error instanceof Error?error.message:"Search failed";setSearchStatus(`Search error: ${message}`,"error");log(`Search error: ${message}`)}finally{button.disabled=false;button.textContent="SEARCH"}}$("search").onclick=search;$("advancedSearch").onclick=search;$("q").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();search()}});document.querySelectorAll(".advanced input").forEach(input=>input.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();search()}}));$("clearAdvanced").onclick=()=>{document.querySelectorAll(".advanced input").forEach(input=>input.value="");setSearchStatus("Advanced fields cleared.")};$("q").addEventListener("input",()=>{if($("q").value.trim())setSearchStatus("Ready. Natural language, state names, abbreviations and ZIP codes are accepted.")});$("batch").onclick=async()=>{const f=$("file").files[0];if(!f)return $("status").textContent="Select an .xlsx file";$("batch").disabled=true;$("status").textContent="Processing in Cloudflare…";const fd=new FormData();fd.append("file",f);const r=await fetch(window.location.origin+"/api/batch",{method:"POST",credentials:"same-origin",body:fd});if(r.status===401)return location.reload();if(!r.ok){const d=await readJson(r);$("status").textContent=d.error||"Processing failed";log(d.error||"Processing failed");$("batch").disabled=false;return}const b=await r.blob(),u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download=`qikreach-enriched-${Date.now()}.xlsx`;a.textContent="DOWNLOAD ENRICHED WORKBOOK";$("download").replaceChildren(a);$("status").textContent="Complete";$("batch").disabled=false;log("Workbook processed and leads saved in D1")};log("Cloudflare mobile app ready")</script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>QikReach Data Refinery</title>
+<style>
+:root{color-scheme:dark;--b:#030712;--p:#0b0f19;--f:#111827;--g:#00ffcc;--r:#ff3158;--y:#ffd166;--m:#94a3b8}
+*{box-sizing:border-box;font-family:ui-monospace,monospace}
+html,body{min-height:100%;touch-action:manipulation}
+body{margin:0;padding:14px;background:var(--b);color:var(--g)}
+h1{text-align:center;font-size:clamp(20px,5vw,30px);border-bottom:2px solid var(--g);padding-bottom:12px}
+.grid{max-width:1200px;margin:auto;display:grid;grid-template-columns:1fr 1.5fr;gap:14px}
+.card{position:relative;background:var(--p);border:1px solid var(--g);padding:16px}
+input,button,a{width:100%;min-height:46px;margin:6px 0;padding:11px;border:1px solid var(--g);background:var(--f);color:var(--g);font-size:16px;border-radius:0}
+input{position:relative;z-index:2;display:block;pointer-events:auto;touch-action:manipulation;cursor:text;-webkit-user-select:text;user-select:text;-webkit-appearance:none;appearance:none}
+input[type=file]{cursor:pointer}
+button,a{position:relative;z-index:1;cursor:pointer;text-align:center;text-decoration:none;font-weight:800;touch-action:manipulation}
+button:hover,a:hover{background:var(--g);color:#00110d}
+button:disabled{cursor:wait;opacity:.65}
+.red{border-color:var(--r);color:var(--r)}
+#log{height:180px;overflow:auto;background:#000;padding:10px;font-size:12px;white-space:pre-wrap}
+.table{overflow:auto}
+table{width:100%;border-collapse:collapse}
+th,td{border:1px solid var(--g);padding:7px;text-align:left;font-size:12px}
+.status{min-height:24px;color:#aab2c0}
+.search-status{min-height:54px;margin:8px 0 4px;padding:12px;border:2px solid #334155;background:#070b12;color:#cbd5e1;font-size:14px;line-height:1.45;white-space:pre-wrap}
+.search-status.idle{border-color:#334155;color:#cbd5e1}
+.search-status.working{border-color:var(--y);color:var(--y)}
+.search-status.success{border-color:var(--g);color:var(--g)}
+.search-status.no-results{border-color:var(--y);color:var(--y)}
+.search-status.error{border-color:var(--r);color:var(--r)}
+.search-status.config{border-color:var(--r);color:var(--r)}
+.api-state{font-size:12px;margin:6px 0;color:var(--m)}
+details{margin:8px 0;border:1px solid #334155;background:#070b12}
+summary{cursor:pointer;padding:12px;font-weight:800;list-style:none}
+summary::-webkit-details-marker{display:none}
+summary:after{content:"+";float:right}
+details[open] summary:after{content:"−"}
+.advanced{padding:0 12px 12px}
+.advanced-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.advanced input{margin:0}
+.advanced-actions{display:flex;gap:8px}
+.advanced-actions button{margin-top:8px}
+.muted{color:var(--m);font-size:12px;line-height:1.4}
+.match-score{white-space:nowrap}
+@media(max-width:800px){.grid{grid-template-columns:1fr}body{padding:9px}.card{overflow:visible}input{min-height:52px}.advanced-grid{grid-template-columns:1fr}.advanced-actions{display:grid;grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<h1>QIKREACH DATA REFINERY</h1>
+<main class="grid">
+<section class="card">
+<h2>Spreadsheet Enrichment</h2>
+<input id="file" type="file" accept=".xlsx">
+<button id="batch" class="red" type="button">PROCESS WORKBOOK</button>
+<div id="status" class="status"></div>
+<div id="download"></div>
+<p><a href="/logout">LOG OUT</a></p>
+</section>
+<section class="card">
+<h2>Cloud Vault Search</h2>
+<input id="q" type="search" inputmode="search" enterkeyhint="search" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Example: John Doe in Connecticut or John Doe 06902" aria-label="Search cloud vault">
+<button id="search" type="button">SEARCH</button>
+<details id="advanced">
+<summary>ADVANCED SEARCH</summary>
+<div class="advanced">
+<div class="advanced-grid">
+<input id="name" placeholder="Name">
+<input id="company" placeholder="Company">
+<input id="phone" inputmode="tel" placeholder="Phone">
+<input id="email" inputmode="email" placeholder="Email">
+<input id="ein" placeholder="EIN">
+<input id="state" placeholder="State or abbreviation">
+<input id="zip" inputmode="numeric" placeholder="ZIP code">
+<input id="address" placeholder="Address, city or street">
+</div>
+<div class="advanced-actions"><button id="clearAdvanced" type="button">CLEAR</button><button id="advancedSearch" type="button">SEARCH FIELDS</button></div>
+<div class="muted">Multiple fields narrow the same search. Misspellings and common formatting differences are normalized.</div>
+</div>
+</details>
+<div id="apiState" class="api-state">Checking search service…</div>
+<div id="searchStatus" class="search-status idle" role="status" aria-live="assertive">Waiting for a search.</div>
+<div id="results"></div>
+<h3>Activity</h3>
+<div id="log"></div>
+</section>
+</main>
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const esc=value=>String(value??"").replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
+const log=message=>{$("log").textContent+=`[${new Date().toLocaleTimeString()}] ${message}\n`;$("log").scrollTop=$("log").scrollHeight};
+let statusLocked=false;
+let apiReady=false;
+function setSearchStatus(message,state="idle",lock=false){const el=$("searchStatus");el.textContent=message;el.className=`search-status ${state}`;statusLocked=lock}
+async function readResponse(response){const text=await response.text();if(!text)return{};try{return JSON.parse(text)}catch{return{error:text.slice(0,500)}}}
+function searchFields(){return{name:$("name").value.trim(),company:$("company").value.trim(),phone:$("phone").value.trim(),email:$("email").value.trim(),ein:$("ein").value.trim(),state:$("state").value.trim(),zip:$("zip").value.trim(),address:$("address").value.trim()}}
+function hasFields(fields){return Object.values(fields).some(Boolean)}
+async function checkApi(showStatus=false){
+  $("apiState").textContent="Checking search service…";
+  try{
+    const response=await fetch(`${window.location.origin}/api/health?ts=${Date.now()}`,{method:"GET",credentials:"same-origin",headers:{accept:"application/json"},cache:"no-store"});
+    const data=await readResponse(response);
+    if(response.status===401){apiReady=false;$("apiState").textContent="Session expired";if(showStatus)setSearchStatus("SESSION EXPIRED\nLog out and sign in again, then retry the search.","error",true);return false}
+    if(!response.ok){apiReady=false;const message=data.error||`Search service failed (${response.status})`;$("apiState").textContent="Search service unavailable";if(showStatus)setSearchStatus(`CONFIGURATION OR SERVER ERROR\n${message}\nThe search was not completed.`,message.toLowerCase().includes("secret")?"config":"error",true);return false}
+    apiReady=true;$("apiState").textContent="Search service connected";if(showStatus)setSearchStatus("Search service is connected. Enter a search and press SEARCH.","success",false);return true
+  }catch(error){apiReady=false;const message=error instanceof Error?error.message:"Network request failed";$("apiState").textContent="Cannot reach search service";if(showStatus)setSearchStatus(`NETWORK ERROR\n${message}\nCheck the connection and retry.`,"error",true);return false}
+}
+async function search(){
+  const query=$("q").value.trim();
+  const fields=searchFields();
+  const button=$("search");
+  const advancedButton=$("advancedSearch");
+  if(!query&&!hasFields(fields)){setSearchStatus("NOTHING TO SEARCH\nEnter a name, company, phone, email, EIN, state, ZIP, or advanced field.","error",true);$("q").focus();return}
+  button.disabled=true;advancedButton.disabled=true;button.textContent="SEARCHING…";
+  setSearchStatus("SEARCHING\nChecking the service and normalizing your search…","working",true);
+  $("results").replaceChildren();
+  const healthy=await checkApi(false);
+  if(!healthy){await checkApi(true);button.disabled=false;advancedButton.disabled=false;button.textContent="SEARCH";return}
+  try{
+    const response=await fetch(`${window.location.origin}/api/search?ts=${Date.now()}`,{method:"POST",credentials:"same-origin",cache:"no-store",headers:{"content-type":"application/json","accept":"application/json"},body:JSON.stringify({query,fields})});
+    const data=await readResponse(response);
+    if(response.status===401){apiReady=false;setSearchStatus("SESSION EXPIRED\nYour search was not run. Log out, sign in again, and retry.","error",true);log("Search failed: session expired");return}
+    if(!response.ok){const message=data.error||`Search failed (${response.status})`;setSearchStatus(`SEARCH FAILED\n${message}\nNo results were returned.`,message.toLowerCase().includes("secret")?"config":"error",true);log(`Search failed: ${message}`);return}
+    const rows=Array.isArray(data.results)?data.results:[];
+    const interpretation=[];
+    if(data.normalized_query)interpretation.push(`text “${data.normalized_query}”`);
+    if(data.interpreted_state)interpretation.push(`state “${data.interpreted_state}”`);
+    if(data.interpreted_zip)interpretation.push(`ZIP “${data.interpreted_zip}”`);
+    const understood=interpretation.length?`\nUnderstood as ${interpretation.join(", ")}.`:"";
+    if(rows.length===0){setSearchStatus(`NO RESULTS\nThe search completed successfully, but no matching records were found.${understood}\nTry fewer filters, another spelling, or a partial phone/email.`,"no-results",true);log(`Search completed: 0 results for ${query||"advanced fields"}`);return}
+    $("results").innerHTML=`<div class="table"><table><tr><th>Company</th><th>Owner</th><th>Address</th><th>Phone</th><th>Email</th><th>Revenue</th><th>Match</th></tr>${rows.map(row=>`<tr><td>${esc(row.company_name)}</td><td>${esc(row.owner_name)}</td><td>${esc(row.address)}</td><td>${esc(row.all_phones)}</td><td>${esc(row.all_emails)}</td><td>${esc(row.revenue)}</td><td class="match-score">${esc(row.match_score)}%</td></tr>`).join("")}</table></div>`;
+    setSearchStatus(`SEARCH COMPLETE\nFound ${rows.length} possible match${rows.length===1?"":"es"}.${understood}` ,"success",true);
+    log(`Search completed: ${rows.length} result(s) for ${query||"advanced fields"}`)
+  }catch(error){const message=error instanceof Error?error.message:"Unknown search error";setSearchStatus(`NETWORK OR BROWSER ERROR\n${message}\nThe search did not complete.`,"error",true);log(`Search exception: ${message}`)}
+  finally{button.disabled=false;advancedButton.disabled=false;button.textContent="SEARCH"}
+}
+$("search").addEventListener("click",search);
+$("advancedSearch").addEventListener("click",search);
+$("q").addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();search()}});
+document.querySelectorAll(".advanced input").forEach(input=>input.addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();search()}}));
+$("clearAdvanced").addEventListener("click",()=>{document.querySelectorAll(".advanced input").forEach(input=>input.value="");setSearchStatus("Advanced fields cleared. The main search field was not changed.","idle",false)});
+$("q").addEventListener("input",()=>{if(!statusLocked)setSearchStatus("Ready to search.","idle",false)});
+document.querySelectorAll(".advanced input").forEach(input=>input.addEventListener("input",()=>{if(!statusLocked)setSearchStatus("Ready to search with advanced filters.","idle",false)}));
+$("batch").addEventListener("click",async()=>{const file=$("file").files[0];if(!file){$("status").textContent="Select an .xlsx file";return}$("batch").disabled=true;$("status").textContent="Processing in Cloudflare…";try{const form=new FormData();form.append("file",file);const response=await fetch(`${window.location.origin}/api/batch`,{method:"POST",credentials:"same-origin",body:form});if(response.status===401){$("status").textContent="Session expired. Sign in again.";return}if(!response.ok){const data=await readResponse(response);$("status").textContent=data.error||`Processing failed (${response.status})`;log($("status").textContent);return}const blob=await response.blob(),url=URL.createObjectURL(blob),link=document.createElement("a");link.href=url;link.download=`qikreach-enriched-${Date.now()}.xlsx`;link.textContent="DOWNLOAD ENRICHED WORKBOOK";$("download").replaceChildren(link);$("status").textContent="Complete";log("Workbook processed and leads saved in D1")}catch(error){$("status").textContent=error instanceof Error?error.message:"Processing failed"}finally{$("batch").disabled=false}});
+log("Cloudflare mobile app ready");
+checkApi(true);
+</script>
+</body>
+</html>
