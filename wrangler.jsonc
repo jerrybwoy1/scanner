@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "qikreach-mobile",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*", "/login", "/logout"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "qikreach-vault",
+      "database_id": "REPLACE_WITH_D1_DATABASE_ID"
+    }
+  ],
+  "vars": {
+    "QIKREACH_USERNAME": "admin"
+  }
+}
