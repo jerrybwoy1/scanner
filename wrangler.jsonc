@@ -1,9 +1,11 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "qikreach-mobile",
+  "name": "scanner",
   "main": "src/index.ts",
-  "compatibility_date": "2026-08-01",
+  "compatibility_date": "2026-08-06",
   "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": true,
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
@@ -13,7 +15,7 @@
     {
       "binding": "DB",
       "database_name": "qikreach-vault",
-      "database_id": "REPLACE_WITH_D1_DATABASE_ID"
+      "database_id": "889843fb-5f77-4cc4-94e6-4a3ff8f1da08"
     }
   ],
   "vars": {
