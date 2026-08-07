@@ -32,6 +32,7 @@ BROWSER_TIMEOUT = 8
 SOURCE_BUDGET = 12
 MAX_BROWSER_FALLBACKS = 1
 SEARCH_TIMEOUT = 35
+DEEP_SEARCH_TIMEOUT = 55
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip() or "gemini-2.5-flash"
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
@@ -97,6 +98,7 @@ class SearchRequest(BaseModel):
     proxy: str = Field(default="", max_length=1000)
     verify_email_domains: bool = True
     use_ollama: bool = False
+    deep_search: bool = False
 
 
 class VisibleText(HTMLParser):
@@ -504,7 +506,7 @@ def ddgs_search(query: str, proxy: str, backend: str) -> list[dict[str, str]]:
     ]
 
 
-async def discover(subject: str, proxy: str, emit: Any = None) -> tuple[list[dict[str, str]], list[dict[str, Any]]]:
+async def discover(subject: str, proxy: str, emit: Any = None, target: int = DISCOVERY_TARGET) -> tuple[list[dict[str, str]], list[dict[str, Any]]]:
     import aiohttp
 
     providers = provider_chain()
@@ -548,7 +550,7 @@ async def discover(subject: str, proxy: str, emit: Any = None) -> tuple[list[dic
                         query=subject,
                         provider=name,
                     )
-                    if len(urls) >= DISCOVERY_TARGET or len(urls) >= MAX_URLS:
+                    if len(urls) >= target or len(urls) >= MAX_URLS:
                         break
                 reports.append({"query": subject, "provider": name, "status": "complete", "results": accepted})
                 await emit_progress(
@@ -560,7 +562,7 @@ async def discover(subject: str, proxy: str, emit: Any = None) -> tuple[list[dic
                     provider=name,
                     results=accepted,
                 )
-                if len(urls) >= DISCOVERY_TARGET or len(urls) >= MAX_URLS:
+                if len(urls) >= target or len(urls) >= MAX_URLS:
                     await emit_progress(
                         emit,
                         "discovery_stopped",
@@ -953,9 +955,11 @@ async def run_search(request: SearchRequest, emit: Any = None) -> dict[str, Any]
         mode=mode,
         verify_email_domains=request.verify_email_domains,
         proxy_used=bool(proxy),
+        deep_search=request.deep_search,
     )
     await emit_progress(emit, "queries_prepared", count=1, queries=[subject], mode=mode)
-    discovered, query_reports = await discover(subject, proxy, emit)
+    discovery_target = min(MAX_URLS, 6 if request.deep_search else DISCOVERY_TARGET)
+    discovered, query_reports = await discover(subject, proxy, emit, discovery_target)
     sources = await scrape_sources(discovered, terms, mode, proxy, emit) if discovered else []
 
     phone_map: dict[tuple[str, str], dict[str, Any]] = {}
@@ -1018,6 +1022,7 @@ async def run_search(request: SearchRequest, emit: Any = None) -> dict[str, Any]
         "relevant_count": sum(1 for source in sources if source.get("relevance", 0) >= 2 and source.get("identity_match", True)),
         "duration_seconds": round(time.perf_counter() - started, 2),
         "proxy_used": bool(proxy),
+        "search_depth": "deep" if request.deep_search else "standard",
     }
     await emit_progress(
         emit,
@@ -1065,14 +1070,18 @@ async def health() -> dict[str, Any]:
         "modules": modules,
     }
 
+def request_timeout(request: SearchRequest) -> int:
+    return DEEP_SEARCH_TIMEOUT if request.deep_search else SEARCH_TIMEOUT
+
 
 @app.post("/search")
 async def search(request: SearchRequest) -> JSONResponse:
+    limit = request_timeout(request)
     try:
-        result = await asyncio.wait_for(run_search(request), timeout=SEARCH_TIMEOUT)
+        result = await asyncio.wait_for(run_search(request), timeout=limit)
         return JSONResponse({"ok": True, "result": result})
     except asyncio.TimeoutError as exc:
-        raise HTTPException(504, f"Search exceeded the {SEARCH_TIMEOUT}-second safety limit") from exc
+        raise HTTPException(504, f"Search exceeded the {limit}-second safety limit") from exc
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
     except Exception as exc:
@@ -1081,6 +1090,7 @@ async def search(request: SearchRequest) -> JSONResponse:
 
 @app.post("/search/stream")
 async def search_stream(request: SearchRequest) -> StreamingResponse:
+    limit = request_timeout(request)
     async def stream():
         queue: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
 
@@ -1089,10 +1099,10 @@ async def search_stream(request: SearchRequest) -> StreamingResponse:
 
         async def runner() -> None:
             try:
-                result = await asyncio.wait_for(run_search(request, emit), timeout=SEARCH_TIMEOUT)
+                result = await asyncio.wait_for(run_search(request, emit), timeout=limit)
                 await emit({"type": "complete", "at": round(time.time(), 3), "result": result})
             except asyncio.TimeoutError:
-                await emit({"type": "error", "at": round(time.time(), 3), "category": "timeout", "error": f"Search exceeded the {SEARCH_TIMEOUT}-second safety limit"})
+                await emit({"type": "error", "at": round(time.time(), 3), "category": "timeout", "error": f"Search exceeded the {limit}-second safety limit"})
             except ValueError as exc:
                 await emit({"type": "error", "at": round(time.time(), 3), "category": "invalid_input", "error": str(exc)})
             except Exception as exc:

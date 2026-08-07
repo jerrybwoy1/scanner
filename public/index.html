@@ -89,7 +89,8 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
 .results-placeholder{min-height:286px;border:1px solid var(--line);border-radius:12px;background:#fff;box-shadow:0 4px 18px rgba(16,24,40,.045);padding:22px 24px;color:var(--muted)}.results-placeholder h2{margin:0;color:var(--navy);font-size:16px;font-weight:500}.results-placeholder p{margin:8px 0 18px;font-size:13px;line-height:1.5}.placeholder-list{display:grid;gap:9px}.placeholder-row{display:flex;align-items:center;gap:10px;border-top:1px solid var(--line2);padding-top:9px;font-size:12px}.placeholder-mark{width:7px;height:7px;border-radius:50%;background:#98a2b3;flex:0 0 auto}
 .side-note{padding:18px 20px;background:#eef5ff;border:1px solid #cbdcf9;color:#35405f;font-size:14px;line-height:1.5}.side-note strong{color:var(--navy)}
 .batch-status{font-size:13px;color:#5f6678;margin-top:10px;min-height:18px}.download a{display:inline-block;margin-top:10px;color:var(--blue);font-weight:700}
-.history-details>summary{cursor:pointer;list-style:none;padding:16px 20px;color:var(--navy);font-weight:400;display:flex;justify-content:space-between;gap:12px}.history-details>summary::after{content:"+";color:var(--blue);font-size:20px}.history-details[open]>summary::after{content:"−"}.history-list{border-top:1px solid var(--line);max-height:300px;overflow:auto}.history-empty{padding:16px 20px;color:var(--muted);font-size:13px}.history-entry{width:100%;border:0;border-bottom:1px solid var(--line2);background:#fff;text-align:left;padding:12px 20px;cursor:pointer;color:var(--ink)}.history-entry:hover,.history-entry:focus-visible{background:#f5f8ff;outline:none}.history-query{font-weight:400;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.history-meta{font-size:12px;color:var(--muted);margin-top:4px;font-weight:400}
+.batch-progress{display:none;align-items:center;gap:9px;margin-top:12px}.batch-progress.show{display:flex}.batch-progress-track{height:6px;flex:1;border-radius:99px;background:#e8ebf0;overflow:hidden}.batch-progress-bar{height:100%;width:38%;border-radius:99px;background:var(--blue);animation:batch-slide 1.15s ease-in-out infinite}.batch-progress.complete .batch-progress-bar{width:100%;animation:none;background:var(--success)}.batch-progress.error .batch-progress-bar{width:100%;animation:none;background:var(--danger)}.batch-elapsed{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}@keyframes batch-slide{0%{transform:translateX(-120%)}100%{transform:translateX(280%)}}
+.history-details{min-height:250px}.history-details>summary{cursor:pointer;list-style:none;padding:16px 20px;color:var(--navy);font-weight:400;display:flex;justify-content:space-between;gap:12px}.history-details>summary::after{content:"+";color:var(--blue);font-size:20px}.history-details[open]>summary::after{content:"−"}.history-list{border-top:1px solid var(--line);height:192px;max-height:192px;overflow:auto}.history-empty{padding:16px 20px;color:var(--muted);font-size:13px}.history-entry{width:100%;border:0;border-bottom:1px solid var(--line2);background:#fff;text-align:left;padding:12px 20px;cursor:pointer;color:var(--ink)}.history-entry:hover,.history-entry:focus-visible{background:#f5f8ff;outline:none}.history-query{font-weight:400;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.history-meta{font-size:12px;color:var(--muted);margin-top:4px;font-weight:400}
 .history-dialog{width:min(680px,calc(100vw - 28px));max-height:82vh;border:1px solid var(--line);border-radius:12px;padding:0;box-shadow:0 24px 70px rgba(16,24,40,.24);color:var(--ink)}.history-dialog::backdrop{background:rgba(16,26,70,.38)}.dialog-head{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--line);padding:16px 18px;display:flex;align-items:center;justify-content:space-between;gap:16px}.dialog-head h2{font-size:17px;color:var(--navy);margin:0}.dialog-close{border:1px solid var(--line);border-radius:7px;background:#fff;min-width:40px;min-height:40px;cursor:pointer;font-size:20px}.dialog-body{padding:18px;overflow:auto}.dialog-query{font-size:18px;font-weight:650;color:var(--navy);overflow-wrap:anywhere}.dialog-meta{font-size:12px;color:var(--muted);margin-top:6px}
 .issue-box{display:none;margin-top:16px;border:1px solid #f1c7c3;background:#fff7f6;padding:14px}.issue-box.show{display:block}.issue-box h3{margin:0 0 8px;color:#8f251d;font-size:14px}.issue-box ul{margin:0;padding-left:18px;font-size:13px;line-height:1.5;color:#69403c}
 @media(max-width:850px){.layout{grid-template-columns:1fr}.left-column,.result-column{display:contents}.side-stack{grid-template-columns:1fr 1fr;position:static}.page{padding:22px 18px 48px}.hero{display:block}.subtitle{text-align:left;margin-top:5px}.topbar{padding:0 18px}}
@@ -123,6 +124,7 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
               <div class="field full"><label for="proxy">Optional Proxy URL</label><input id="proxy" type="text" autocomplete="off" placeholder="http:// or socks5://"></div>
             </div>
             <label class="check" for="verify"><input id="verify" type="checkbox" checked> Verify discovered email domains by MX record</label>
+            <label class="check" for="deep-search"><input id="deep-search" type="checkbox"> Deep Search: check more public sources and allow a longer run</label>
           </details>
 
           <div class="actions">
@@ -166,6 +168,7 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
         <input id="file" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
         <button id="batch" class="btn primary" type="button" style="width:100%;margin-top:12px">Execute Batch Enrichment</button>
         <div id="batchStatus" class="batch-status" aria-live="polite"></div>
+        <div id="batchProgress" class="batch-progress" role="progressbar" aria-label="Batch enrichment progress" aria-valuemin="0" aria-valuemax="100" aria-valuetext="Processing" aria-live="polite"><div class="batch-progress-track"><div class="batch-progress-bar"></div></div><span id="batchElapsed" class="batch-elapsed">00:00 elapsed</span></div>
         <div id="download" class="download"></div>
       </div>
     </section>
@@ -191,7 +194,7 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
 
       <aside class="side-stack">
       <section class="panel">
-        <details class="history-details">
+        <details class="history-details" open>
           <summary><span>Recent Searches</span><span id="history-count" class="timer">0 saved</span></summary>
           <div id="history-list" class="history-list"><div class="history-empty">No saved searches yet.</div></div>
         </details>
@@ -232,6 +235,8 @@ const SearchState = Object.freeze({
 });
 let currentSearchState = SearchState.IDLE;
 let liveDiagnostics = {events:0, stage:'Waiting', lastSource:'None', lastError:'None'};
+let batchStartedAt = 0;
+let batchTimerId = null;
 
 function formatElapsed(ms) {
   const total = Math.max(0, Math.floor(ms / 1000));
@@ -248,6 +253,21 @@ function updateDiagnostics(patch={}) {
   $('diag-counts').textContent = `${liveSources.size} / ${livePhones.size + liveEmails.size}`;
   $('diag-source').textContent = liveDiagnostics.lastSource || 'None';
   $('diag-error').textContent = liveDiagnostics.lastError || 'None';
+}
+function setBatchProgress(state='working') {
+  const progress = $('batchProgress');
+  progress.className = `batch-progress show ${state === 'complete' ? 'complete' : state === 'error' ? 'error' : ''}`.trim();
+  progress.setAttribute('aria-valuetext', state === 'complete' ? 'Complete' : state === 'error' ? 'Failed' : 'Processing');
+}
+function startBatchClock() {
+  batchStartedAt = Date.now();
+  clearInterval(batchTimerId);
+  $('batchElapsed').textContent = '00:00 elapsed';
+  batchTimerId = setInterval(() => $('batchElapsed').textContent = `${formatElapsed(Date.now() - batchStartedAt)} elapsed`, 1000);
+}
+function stopBatchClock() {
+  clearInterval(batchTimerId);
+  batchTimerId = null;
 }
 function transition(state) {
   currentSearchState = state;
@@ -503,6 +523,7 @@ function payload() {
     fields:fields(),
     proxy:$('proxy').value.trim(),
     verify_email_domains:$('verify').checked,
+    deep_search:$('deep-search').checked,
     use_ollama:false
   };
 }
@@ -602,7 +623,8 @@ function handleStreamEvent(event) {
 }
 async function streamSearch(searchPayload) {
   activeController = new AbortController();
-  const timeout = setTimeout(() => activeController.abort(), 45000);
+  const clientLimit = searchPayload.deep_search ? 65000 : 45000;
+  const timeout = setTimeout(() => activeController.abort(), clientLimit);
   try {
     transition(SearchState.CONNECTING);
     trace('Streaming request sent','POST /api/search/stream','active');
@@ -778,7 +800,7 @@ async function runSearch() {
     trace(historySaved ? 'Search saved locally' : 'Local search history unavailable',historySaved ? 'Open Recent Searches to review the query, contacts, and exact source URLs.' : 'Browser storage is unavailable.',historySaved ? 'success' : 'warning');
   } catch (error) {
     const aborted = error?.name === 'AbortError';
-    const message = aborted ? 'The browser stopped waiting after the 45-second client safety limit.' : (error?.message || 'Unknown search error');
+    const message = aborted ? `The browser stopped waiting after the ${searchPayload.deep_search ? 65 : 45}-second client safety limit.` : (error?.message || 'Unknown search error');
     const status = Number(error?.status || 0);
     const kind = aborted || status === 504 ? SearchState.TIMEOUT : status === 502 || status === 503 ? SearchState.BACKEND_OFFLINE : status >= 500 ? SearchState.SERVER_ERROR : status ? SearchState.SERVER_ERROR : SearchState.NETWORK_ERROR;
     transition(kind);
@@ -825,6 +847,8 @@ $('batch').addEventListener('click', async () => {
   const button = $('batch');
   button.disabled = true;
   $('download').innerHTML='';
+  setBatchProgress('working');
+  startBatchClock();
   $('batchStatus').textContent='Uploading workbook…';
   try {
     const form = new FormData();
@@ -834,7 +858,7 @@ $('batch').addEventListener('click', async () => {
     form.append('proxy',$('proxy').value.trim());
     form.append('verify_email_domains',String($('verify').checked));
     form.append('use_ollama','false');
-    $('batchStatus').textContent='Processing workbook…';
+    $('batchStatus').textContent='Processing workbook… The bar is indeterminate because the current batch route returns one final XLSX response rather than per-row progress.';
     const response = await fetch('/api/batch',{method:'POST',body:form});
     if (!response.ok) {
       const data = await readResponse(response);
@@ -848,10 +872,13 @@ $('batch').addEventListener('click', async () => {
     link.download=`qikreach-enriched-${Date.now()}.xlsx`;
     link.textContent='Download enriched workbook';
     $('download').replaceChildren(link);
-    $('batchStatus').textContent=`Complete • ${Math.round(blob.size/1024)} KB`;
+    setBatchProgress('complete');
+    $('batchStatus').textContent=`Complete • ${Math.round(blob.size/1024)} KB • Download is ready.`;
   } catch (error) {
+    setBatchProgress('error');
     $('batchStatus').textContent=`Batch failed: ${error.message}`;
   } finally {
+    stopBatchClock();
     button.disabled=false;
   }
 });
