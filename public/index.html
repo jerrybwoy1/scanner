@@ -3,45 +3,567 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>QikReach Live Enrichment</title>
+<title>QikReach Lead Intelligence</title>
 <style>
-:root{color-scheme:dark;--bg:#030712;--panel:#0b0f19;--field:#111827;--green:#00ffcc;--red:#ff3158;--yellow:#ffd166;--muted:#94a3b8}*{box-sizing:border-box;font-family:ui-monospace,monospace}body{margin:0;padding:12px;background:var(--bg);color:var(--green)}h1{text-align:center;font-size:clamp(22px,6vw,34px)}.grid{max-width:1200px;margin:auto;display:grid;grid-template-columns:1fr 1.6fr;gap:14px}.card{background:var(--panel);border:1px solid var(--green);padding:16px}input,button{width:100%;min-height:50px;margin:6px 0;padding:12px;border:1px solid var(--green);background:var(--field);color:var(--green);font-size:16px;border-radius:0}button{font-weight:800;cursor:pointer}button:disabled{opacity:.55;cursor:wait}.red{border-color:var(--red);color:var(--red)}details{margin:8px 0;border:1px solid #334155;background:#070b12}summary{padding:12px;font-weight:800;cursor:pointer;list-style:none}summary:after{content:'+';float:right}details[open] summary:after{content:'−'}.advanced{padding:0 12px 12px}.advanced-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.advanced-grid input{margin:0}.check{display:flex;align-items:center;gap:8px;color:#cbd5e1;font-size:13px;margin:10px 0}.check input{width:auto;min-height:0;margin:0}.status{margin:10px 0;padding:12px;border:2px solid #334155;background:#070b12;white-space:pre-wrap;line-height:1.45}.working{border-color:var(--yellow);color:var(--yellow)}.success{border-color:var(--green);color:var(--green)}.error{border-color:var(--red);color:var(--red)}.none{border-color:var(--yellow);color:var(--yellow)}.meta{font-size:12px;color:var(--muted);margin:6px 0;white-space:pre-wrap}.source{border:1px solid #334155;padding:10px;margin:8px 0;background:#070b12}.source a{color:var(--green);word-break:break-all}.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px}.chip{border:1px solid #334155;padding:4px 6px;font-size:12px;color:#cbd5e1}#log{height:160px;overflow:auto;background:#000;padding:10px;font-size:12px;white-space:pre-wrap}@media(max-width:800px){.grid{grid-template-columns:1fr}.advanced-grid{grid-template-columns:1fr}body{padding:8px}}
+:root{
+  color-scheme:light;
+  --navy:#101a46;
+  --blue:#1557d6;
+  --blue2:#0b67e3;
+  --ink:#20243a;
+  --muted:#667085;
+  --line:#d8dce6;
+  --line2:#e9ecf2;
+  --soft:#f5f8fc;
+  --softblue:#edf5ff;
+  --success:#16794b;
+  --warning:#9a6700;
+  --danger:#b42318;
+  --white:#fff;
+  --shadow:0 2px 10px rgba(16,24,40,.08);
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:#fff;color:var(--ink);font-family:Arial,"Helvetica Neue",Helvetica,sans-serif}
+body{overflow-x:hidden}
+button,input{font:inherit}
+a{color:var(--blue);text-underline-offset:2px}
+.topbar{height:64px;border-bottom:1px solid #cfd4df;box-shadow:0 2px 7px rgba(16,24,40,.08);display:flex;align-items:center;justify-content:space-between;padding:0 max(20px,calc((100vw - 1180px)/2));position:sticky;top:0;background:#fff;z-index:20}
+.brand{display:flex;align-items:center;gap:10px;color:var(--navy);font-size:22px;font-weight:700;letter-spacing:-.5px}
+.brand-mark{width:28px;height:28px;border:2px solid var(--blue);display:grid;place-items:center;font-size:14px;color:var(--blue);font-weight:800}
+.status-pill{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:999px;padding:8px 12px;font-size:13px;color:var(--muted);background:#fff}
+.status-dot{width:8px;height:8px;border-radius:50%;background:#98a2b3}.status-pill.online .status-dot{background:var(--success)}.status-pill.waking .status-dot{background:#f0b429}.status-pill.offline .status-dot{background:var(--danger)}
+.page{max-width:1180px;margin:0 auto;padding:34px 24px 60px}
+.breadcrumb{font-size:13px;color:var(--muted);margin-bottom:24px}
+.hero{border-bottom:1px solid var(--line);padding-bottom:24px;margin-bottom:28px}
+.eyebrow{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#6d7085;margin-bottom:8px}
+h1{margin:0;color:var(--navy);font-weight:400;font-size:clamp(30px,4vw,46px);letter-spacing:-1.3px}
+.subtitle{font-size:18px;color:#53586d;line-height:1.5;margin:12px 0 0;max-width:760px}
+.layout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(300px,.8fr);gap:24px;align-items:start}
+.panel{border:1px solid var(--line);background:#fff}
+.panel-head{padding:18px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:12px}
+.panel-head h2{font-size:18px;color:var(--navy);font-weight:600;margin:0}
+.panel-body{padding:20px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.field.full{grid-column:1/-1}
+label{display:block;color:#34384e;font-size:13px;font-weight:600;margin-bottom:7px}
+input[type=text],input[type=search],input[type=tel],input[type=email],input[type=file]{width:100%;min-height:46px;border:1px solid #adb5c5;background:#fff;color:var(--ink);padding:10px 12px;border-radius:2px;outline:none}
+input:focus{border-color:var(--blue);box-shadow:0 0 0 2px rgba(21,87,214,.12)}
+.actions{display:flex;gap:12px;align-items:center;margin-top:18px}
+.btn{min-height:46px;border:1px solid var(--blue);border-radius:4px;padding:0 20px;font-weight:700;cursor:pointer;background:#fff;color:var(--blue)}
+.btn.primary{background:var(--blue);color:#fff}.btn.secondary{border-color:#98a2b3;color:#344054}.btn:disabled{opacity:.55;cursor:wait}
+details.advanced{border-top:1px solid var(--line2);margin-top:20px;padding-top:4px}
+details.advanced summary{cursor:pointer;color:var(--navy);font-weight:600;padding:13px 0;list-style:none}
+details.advanced summary::after{content:"+";float:right;color:var(--blue);font-size:20px}details[open].advanced summary::after{content:"−"}
+.advanced-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:6px 0 4px}
+.check{display:flex;align-items:center;gap:9px;margin-top:14px;color:#475467;font-size:14px}.check input{width:17px;height:17px}
+.health-line{display:flex;align-items:center;gap:8px;padding:12px 14px;background:var(--soft);border:1px solid var(--line2);margin-top:18px;font-size:13px;color:#475467}
+.search-state{margin-top:16px;border:1px solid var(--line);padding:15px 16px;background:#fff}
+.search-state.working{border-left:4px solid var(--blue);background:var(--softblue)}
+.search-state.success{border-left:4px solid var(--success)}
+.search-state.warning{border-left:4px solid #e0a100;background:#fffaf0}
+.search-state.error{border-left:4px solid var(--danger);background:#fff6f5}
+.state-title{font-size:15px;font-weight:700;color:var(--navy)}.state-copy{font-size:14px;color:#5b6174;margin-top:4px;line-height:1.45}
+.diagnostic{margin-top:10px;padding:10px 12px;background:#fffaf0;border:1px solid #f0d58a;color:#6b5200;font-size:13px;line-height:1.45;display:none}
+.diagnostic.show{display:block}
+.trace{margin-top:18px;border:1px solid var(--line);background:#fff}
+.trace-head{display:flex;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);background:#fafbfc}
+.trace-title{font-weight:700;color:var(--navy)}.timer{font-variant-numeric:tabular-nums;color:#5f6678;font-size:13px}
+.trace-list{max-height:430px;overflow:auto;padding:4px 0}
+.trace-row{display:grid;grid-template-columns:68px 24px 1fr;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line2);font-size:13px;line-height:1.35}
+.trace-row:last-child{border-bottom:0}.trace-time{color:#81889a;font-variant-numeric:tabular-nums}.trace-icon{font-weight:800;text-align:center}
+.trace-row.success .trace-icon{color:var(--success)}.trace-row.warning .trace-icon{color:var(--warning)}.trace-row.error .trace-icon{color:var(--danger)}.trace-row.active .trace-icon{color:var(--blue)}
+.trace-main{min-width:0}.trace-main strong{color:#30364b}.trace-detail{color:#667085;margin-top:3px;overflow-wrap:anywhere}
+.results{margin-top:24px;display:none}.results.show{display:block}
+.summary-grid{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);margin-bottom:18px}
+.metric{padding:15px;border-right:1px solid var(--line)}.metric:last-child{border-right:0}.metric-value{font-size:24px;color:var(--navy)}.metric-label{font-size:12px;color:var(--muted);margin-top:4px}
+.result-section{border:1px solid var(--line);margin-top:14px}.result-section h3{margin:0;padding:13px 16px;border-bottom:1px solid var(--line);font-size:15px;color:var(--navy);background:#fafbfc}
+.result-body{padding:14px 16px}.item-list{display:flex;flex-wrap:wrap;gap:8px}.item{border:1px solid var(--line);padding:8px 10px;background:#fff;font-size:13px}
+.source-card{padding:13px 0;border-bottom:1px solid var(--line2)}.source-card:last-child{border-bottom:0}.source-title{font-weight:600;color:#30364b}.source-meta{font-size:12px;color:#667085;margin-top:5px}.source-error{font-size:12px;color:var(--danger);margin-top:5px;overflow-wrap:anywhere}
+.tech{margin-top:14px;border:1px solid var(--line)}.tech summary{padding:11px 13px;cursor:pointer;color:#475467;font-size:13px}.tech pre{margin:0;padding:13px;border-top:1px solid var(--line);background:#f8fafc;max-height:300px;overflow:auto;font-size:11px;white-space:pre-wrap;word-break:break-word}
+.side-stack{display:grid;gap:24px}
+.side-note{padding:18px 20px;background:#eef5ff;border:1px solid #cbdcf9;color:#35405f;font-size:14px;line-height:1.5}.side-note strong{color:var(--navy)}
+.batch-status{font-size:13px;color:#5f6678;margin-top:10px;min-height:18px}.download a{display:inline-block;margin-top:10px;color:var(--blue);font-weight:700}
+.issue-box{display:none;margin-top:16px;border:1px solid #f1c7c3;background:#fff7f6;padding:14px}.issue-box.show{display:block}.issue-box h3{margin:0 0 8px;color:#8f251d;font-size:14px}.issue-box ul{margin:0;padding-left:18px;font-size:13px;line-height:1.5;color:#69403c}
+@media(max-width:850px){.layout{grid-template-columns:1fr}.side-stack{grid-template-columns:1fr 1fr}.page{padding:26px 18px 48px}.topbar{padding:0 18px}}
+@media(max-width:620px){.topbar{height:58px}.brand{font-size:20px}.page{padding:22px 16px 42px}.form-grid,.advanced-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.actions{flex-direction:column}.btn{width:100%}.side-stack{grid-template-columns:1fr}.summary-grid{grid-template-columns:1fr 1fr}.metric:nth-child(2){border-right:0}.metric:nth-child(-n+2){border-bottom:1px solid var(--line)}.trace-row{grid-template-columns:58px 20px 1fr;padding:10px 10px}.status-pill span:last-child{display:none}}
 </style>
 </head>
 <body>
-<h1>QIKREACH LIVE ENRICHMENT</h1>
-<main class="grid">
-<section class="card">
-<h2>Spreadsheet Enrichment</h2>
-<input id="file" type="file" accept=".xlsx">
-<button id="batch" class="red" type="button">PROCESS WORKBOOK</button>
-<div id="batchStatus" class="meta"></div><div id="download"></div>
-</section>
-<section class="card">
-<h2>Live Search + Scraping</h2>
-<input id="q" type="search" inputmode="search" enterkeyhint="search" autocomplete="off" placeholder="Name, company, phone, email, EIN, state or ZIP">
-<button id="search" type="button">SEARCH & SCRAPE</button>
-<details><summary>ADVANCED SEARCH</summary><div class="advanced"><div class="advanced-grid">
-<input id="company" placeholder="Company"><input id="person" placeholder="Person or owner"><input id="phone" inputmode="tel" placeholder="Phone"><input id="email" inputmode="email" placeholder="Email"><input id="ein" placeholder="EIN"><input id="state" placeholder="State"><input id="address" placeholder="Address or city"><input id="proxy" placeholder="Optional http/socks proxy URL">
-</div><label class="check"><input id="verify" type="checkbox" checked>Verify email domains by MX</label><button id="clear" type="button">CLEAR FIELDS</button></div></details>
-<div id="health" class="meta">Checking Python backend…</div>
-<div id="status" class="status">Enter a search and press SEARCH & SCRAPE.</div>
-<div id="results"></div><div id="sources"></div><h3>Activity</h3><div id="log"></div>
-</section>
+<header class="topbar">
+  <div class="brand"><span class="brand-mark">Q</span><span>QikReach</span></div>
+  <div id="backend-pill" class="status-pill offline" aria-live="polite"><span class="status-dot"></span><span id="backend-label">Backend checking</span></div>
+</header>
+
+<main class="page">
+  <div class="breadcrumb">Home &nbsp;/&nbsp; Lead Intelligence</div>
+  <section class="hero">
+    <div class="eyebrow">Business intelligence</div>
+    <h1>Lead Intelligence</h1>
+    <p class="subtitle">Search, verify, enrich, and diagnose business contact intelligence with a live trace of every verifiable step.</p>
+  </section>
+
+  <div class="layout">
+    <section class="panel" aria-labelledby="search-heading">
+      <div class="panel-head"><h2 id="search-heading">Search &amp; Enrich</h2><span id="run-id" class="timer"></span></div>
+      <div class="panel-body">
+        <div class="form-grid">
+          <div class="field full"><label for="q">Core Search Query</label><input id="q" type="search" inputmode="search" enterkeyhint="search" autocomplete="off" placeholder="Company, person, phone, email, EIN, state or ZIP"></div>
+          <div class="field"><label for="company">Company</label><input id="company" type="text" autocomplete="organization"></div>
+          <div class="field"><label for="person">Person / Owner</label><input id="person" type="text" autocomplete="name"></div>
+          <div class="field"><label for="phone">Known Phone</label><input id="phone" type="tel" inputmode="tel" autocomplete="tel"></div>
+          <div class="field"><label for="email">Known Email</label><input id="email" type="email" inputmode="email" autocomplete="email"></div>
+        </div>
+
+        <details class="advanced">
+          <summary>Advanced Options</summary>
+          <div class="advanced-grid">
+            <div class="field"><label for="ein">EIN</label><input id="ein" type="text"></div>
+            <div class="field"><label for="state">State</label><input id="state" type="text"></div>
+            <div class="field full"><label for="address">Address / City</label><input id="address" type="text" autocomplete="street-address"></div>
+            <div class="field full"><label for="proxy">Optional Proxy URL</label><input id="proxy" type="text" autocomplete="off" placeholder="http:// or socks5://"></div>
+          </div>
+          <label class="check" for="verify"><input id="verify" type="checkbox" checked> Verify discovered email domains by MX record</label>
+        </details>
+
+        <div class="actions">
+          <button id="search" class="btn primary" type="button">Search &amp; Enrich</button>
+          <button id="clear" class="btn secondary" type="button">Clear</button>
+        </div>
+
+        <div id="health" class="health-line" aria-live="polite">Checking backend health…</div>
+
+        <div id="status" class="search-state" role="status" aria-live="polite">
+          <div class="state-title">Ready</div>
+          <div class="state-copy">Enter one or more search values, then start the enrichment run.</div>
+        </div>
+        <div id="diagnostic" class="diagnostic" aria-live="polite"></div>
+
+        <section class="trace" aria-labelledby="trace-heading">
+          <div class="trace-head"><div id="trace-heading" class="trace-title">Live Search Activity</div><div id="elapsed" class="timer">00:00</div></div>
+          <div id="trace-list" class="trace-list" aria-live="polite">
+            <div class="trace-row"><div class="trace-time">--:--</div><div class="trace-icon">○</div><div class="trace-main"><strong>No run yet</strong><div class="trace-detail">Verified search events will appear here.</div></div></div>
+          </div>
+        </section>
+
+        <section id="results" class="results" aria-labelledby="results-heading">
+          <div class="panel-head"><h2 id="results-heading">Results</h2><span id="result-status" class="timer"></span></div>
+          <div id="summary-grid" class="summary-grid"></div>
+          <div id="result-content"></div>
+          <div id="issue-box" class="issue-box"></div>
+          <details class="tech"><summary>Technical Details / Raw Response</summary><pre id="raw-response"></pre></details>
+        </section>
+      </div>
+    </section>
+
+    <aside class="side-stack">
+      <section class="panel">
+        <div class="panel-head"><h2>Spreadsheet Enrichment</h2></div>
+        <div class="panel-body">
+          <label for="file">Select Spreadsheet</label>
+          <input id="file" type="file" accept=".xlsx">
+          <button id="batch" class="btn primary" type="button" style="width:100%;margin-top:12px">Execute Batch Enrichment</button>
+          <div id="batchStatus" class="batch-status" aria-live="polite"></div>
+          <div id="download" class="download"></div>
+        </div>
+      </section>
+
+      <div class="side-note">
+        <strong>Live diagnostics</strong><br>
+        The activity panel reports only events the browser or backend actually confirms. If a source stalls, blocks automation, rate-limits, times out, or falls back to another retrieval method, the run will identify it.
+      </div>
+    </aside>
+  </div>
 </main>
+
 <script>
 'use strict';
-const $=id=>document.getElementById(id),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const log=m=>{$('log').textContent+=`[${new Date().toLocaleTimeString()}] ${m}\n`; $('log').scrollTop=$('log').scrollHeight};
-function status(text,state=''){const el=$('status');el.textContent=text;el.className=`status ${state}`.trim()}
-async function read(response){const text=await response.text();try{return JSON.parse(text)}catch{return{error:text||`HTTP ${response.status}`}}}
-function fields(){return{company:$('company').value.trim(),person:$('person').value.trim(),phone:$('phone').value.trim(),email:$('email').value.trim(),ein:$('ein').value.trim(),state:$('state').value.trim(),address:$('address').value.trim()}}
-async function health(){try{const response=await fetch(`/api/health?ts=${Date.now()}`,{cache:'no-store'}),data=await read(response);if(!response.ok)throw new Error(data.error||data.detail||'Backend health check failed');$('health').textContent=`Python backend connected • Search: ${data.search_ready?'ready':'not ready'} • Browser crawler: ${data.browser_crawler_ready?'ready':'fallback only'} • Proxy: ${data.proxy_ready?'ready':'not ready'} • Batch: ${data.batch_ready?'ready':'not ready'}`;return true}catch(error){$('health').textContent=`Python backend unavailable: ${error.message}`;return false}}
-function render(result){const phones=result.phones||[],emails=result.emails||[],sources=result.sources||[];$('results').innerHTML=`<h3>Results</h3><div class=meta>Status: ${esc(result.status)} • Discovered: ${esc(result.discovered_count)} • Scraped: ${esc(result.scraped_count)} • Relevant: ${esc(result.relevant_count)} • Duration: ${esc(result.duration_seconds)}s</div><div class=chips>${phones.map(x=>`<span class=chip>${esc(x.number)}${x.extension?` x${esc(x.extension)}`:''}</span>`).join('')}${emails.map(x=>`<span class=chip>${esc(x.email)} [${esc(x.domain_status)}]</span>`).join('')}${!phones.length&&!emails.length?'<span class=chip>No verified contacts extracted</span>':''}</div>`;$('sources').innerHTML=`<h3>Sources Checked</h3>${sources.map(s=>`<div class=source><strong>${esc(s.title||'Untitled')}</strong><div><a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.url)}</a></div><div class=meta>${esc(s.status)} • ${esc(s.method||'')} • relevance ${esc(s.relevance??0)}</div>${s.error?`<div class=meta>${esc(s.error)}</div>`:''}</div>`).join('')||'<div class="status none">No public sources were discovered.</div>'}`}
-async function search(){const query=$('q').value.trim(),advanced=fields();if(!query&&!Object.values(advanced).some(Boolean)){status('NOTHING TO SEARCH\nEnter at least one search value.','error');return}const button=$('search');button.disabled=true;button.textContent='SEARCHING…';$('results').innerHTML='';$('sources').innerHTML='';status('SEARCHING\nDiscovering public sources, opening pages, checking relevance, extracting phones and emails, and verifying domains.','working');log(`Search started: ${query||'advanced fields'}`);try{const response=await fetch('/api/search',{method:'POST',headers:{'content-type':'application/json','accept':'application/json'},body:JSON.stringify({query,fields:advanced,proxy:$('proxy').value.trim(),verify_email_domains:$('verify').checked,use_ollama:false})}),data=await read(response);if(!response.ok)throw new Error(data.detail||data.error||`Search failed (${response.status})`);render(data.result);const result=data.result,contacts=(result.phones||[]).length+(result.emails||[]).length;if(contacts)status(`SEARCH COMPLETE\nFound ${contacts} contact item(s).\nChecked ${(result.sources||[]).length} source page(s).`,'success');else status(`SEARCH COMPLETE — NO CONTACT RESULTS\nChecked ${(result.sources||[]).length} source page(s).\nResult status: ${result.status}`,'none');log(`Search complete: ${contacts} contact item(s)`)}catch(error){status(`SEARCH FAILED\n${error.message}`,'error');log(`Search failed: ${error.message}`)}finally{button.disabled=false;button.textContent='SEARCH & SCRAPE'}}
-$('search').onclick=search;$('q').addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();search()}});document.querySelectorAll('.advanced input').forEach(input=>input.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();search()}}));$('clear').onclick=()=>{document.querySelectorAll('.advanced input').forEach(input=>input.value='');status('Advanced fields cleared.')};
-$('batch').onclick=async()=>{const file=$('file').files[0];if(!file){$('batchStatus').textContent='Select an .xlsx workbook';return}const button=$('batch');button.disabled=true;$('batchStatus').textContent='Uploading and enriching workbook…';try{const form=new FormData();form.append('file',file);form.append('concurrency','2');form.append('delay','0');form.append('proxy',$('proxy').value.trim());form.append('verify_email_domains',String($('verify').checked));form.append('use_ollama','false');const response=await fetch('/api/batch',{method:'POST',body:form});if(!response.ok){const data=await read(response);throw new Error(data.detail||data.error||'Batch failed')}const blob=await response.blob(),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=`qikreach-enriched-${Date.now()}.xlsx`;link.textContent='DOWNLOAD ENRICHED WORKBOOK';$('download').replaceChildren(link);$('batchStatus').textContent='Complete'}catch(error){$('batchStatus').textContent=`Failed: ${error.message}`}finally{button.disabled=false}};
-log('Mobile browser interface ready');health();
+
+const $ = id => document.getElementById(id);
+const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let searchActive = false;
+let runStartedAt = 0;
+let lastEventAt = 0;
+let timerId = null;
+let watchdogId = null;
+let activeController = null;
+let finalPayload = null;
+
+function formatElapsed(ms) {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  return `${String(Math.floor(total / 60)).padStart(2,'0')}:${String(total % 60).padStart(2,'0')}`;
+}
+function elapsed() { return runStartedAt ? formatElapsed(Date.now() - runStartedAt) : '00:00'; }
+function setBackend(state, text) {
+  const pill = $('backend-pill');
+  pill.className = `status-pill ${state}`;
+  $('backend-label').textContent = text;
+}
+function setStatus(title, copy, state='') {
+  const el = $('status');
+  el.className = `search-state ${state}`.trim();
+  el.innerHTML = `<div class="state-title">${esc(title)}</div><div class="state-copy">${esc(copy)}</div>`;
+}
+function setDiagnostic(text='') {
+  const el = $('diagnostic');
+  el.textContent = text;
+  el.className = text ? 'diagnostic show' : 'diagnostic';
+}
+function startClock() {
+  stopClock();
+  runStartedAt = Date.now();
+  lastEventAt = runStartedAt;
+  $('elapsed').textContent = '00:00';
+  timerId = setInterval(() => $('elapsed').textContent = elapsed(), 1000);
+  watchdogId = setInterval(() => {
+    if (!searchActive) return;
+    const silentFor = Date.now() - lastEventAt;
+    if (silentFor >= 20000) {
+      setDiagnostic(`No new backend event for ${formatElapsed(silentFor)}. The connection is still open. The current discovery/source operation may be slow, blocked, rate-limited, or waiting for its safety timeout.`);
+    }
+  }, 2000);
+}
+function stopClock() {
+  if (timerId) clearInterval(timerId);
+  if (watchdogId) clearInterval(watchdogId);
+  timerId = null;
+  watchdogId = null;
+}
+function resetTrace() {
+  $('trace-list').innerHTML = '';
+  setDiagnostic('');
+}
+function trace(title, detail='', state='active') {
+  lastEventAt = Date.now();
+  const icons = {active:'●',success:'✓',warning:'!',error:'✕',waiting:'○'};
+  const row = document.createElement('div');
+  row.className = `trace-row ${state}`;
+  row.innerHTML = `<div class="trace-time">${esc(elapsed())}</div><div class="trace-icon">${icons[state] || '○'}</div><div class="trace-main"><strong>${esc(title)}</strong>${detail ? `<div class="trace-detail">${esc(detail)}</div>` : ''}</div>`;
+  $('trace-list').appendChild(row);
+  $('trace-list').scrollTop = $('trace-list').scrollHeight;
+}
+function fields() {
+  return {
+    company:$('company').value.trim(),
+    person:$('person').value.trim(),
+    phone:$('phone').value.trim(),
+    email:$('email').value.trim(),
+    ein:$('ein').value.trim(),
+    state:$('state').value.trim(),
+    address:$('address').value.trim()
+  };
+}
+function payload() {
+  return {
+    query:$('q').value.trim(),
+    fields:fields(),
+    proxy:$('proxy').value.trim(),
+    verify_email_domains:$('verify').checked,
+    use_ollama:false
+  };
+}
+async function readResponse(response) {
+  const text = await response.text();
+  try { return JSON.parse(text); }
+  catch { return {error:text || `HTTP ${response.status}`, parse_error:true}; }
+}
+async function timedFetch(url, options={}, timeoutMs=15000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try { return await fetch(url, {...options, signal:controller.signal}); }
+  finally { clearTimeout(timer); }
+}
+async function checkHealth({retries=0, traceEvents=false}={}) {
+  for (let attempt=0; attempt<=retries; attempt++) {
+    if (traceEvents) trace(attempt ? `Backend wake retry ${attempt}` : 'Backend health check started', 'GET /api/health', 'active');
+    try {
+      const response = await timedFetch(`/api/health?ts=${Date.now()}`, {cache:'no-store'}, 15000);
+      const data = await readResponse(response);
+      if (!response.ok || !data.ok || !data.search_ready) throw new Error(data.detail || data.error || `Health HTTP ${response.status}`);
+      setBackend('online','Backend Online');
+      $('health').textContent = `Backend Online • Search ready • Crawler ${data.browser_crawler_ready ? 'ready' : 'fallback only'} • Proxy ${data.proxy_ready ? 'ready' : 'unavailable'} • Batch ${data.batch_ready ? 'ready' : 'unavailable'}`;
+      if (traceEvents) trace('Backend online', `HTTP ${response.status} • search_ready=true • browser_crawler_ready=${Boolean(data.browser_crawler_ready)}`, 'success');
+      return data;
+    } catch (error) {
+      if (attempt < retries) {
+        setBackend('waking','Backend Waking');
+        $('health').textContent = 'Backend may be waking from Render sleep. Retrying…';
+        if (traceEvents) trace('Backend not ready yet', `${error.message}. Waiting before retry.`, 'warning');
+        await new Promise(resolve => setTimeout(resolve, 1800 + attempt * 1200));
+        continue;
+      }
+      setBackend('offline','Backend Offline');
+      $('health').textContent = `Backend unavailable: ${error.message}`;
+      if (traceEvents) trace('Backend health failed', error.message, 'error');
+      throw error;
+    }
+  }
+}
+function classifySourceError(message='') {
+  const text = message.toLowerCase();
+  if (text.includes('429') || text.includes('rate')) return 'Rate limited';
+  if (text.includes('403') || text.includes('forbidden') || text.includes('captcha') || text.includes('challenge')) return 'Blocked / anti-bot';
+  if (text.includes('timeout') || text.includes('timed out')) return 'Timed out';
+  if (text.includes('dns') || text.includes('getaddrinfo') || text.includes('name resolution')) return 'DNS / host lookup';
+  if (text.includes('ssl') || text.includes('certificate')) return 'SSL / certificate';
+  if (text.includes('proxy')) return 'Proxy';
+  return 'Source error';
+}
+function handleStreamEvent(event) {
+  lastEventAt = Date.now();
+  setDiagnostic('');
+  switch (event.type) {
+    case 'search_started': trace('Backend search pipeline started','Request accepted by Python backend.','success'); break;
+    case 'input_validated': trace('Search inputs validated',`${(event.terms||[]).length} identity term(s) • MX verification ${event.verify_email_domains?'on':'off'} • proxy ${event.proxy_used?'on':'off'}`,'success'); break;
+    case 'queries_prepared': trace('Discovery queries prepared',`${event.count} query variations generated.`,'success'); break;
+    case 'discovery_started': trace('Public-source discovery started',`${event.query_count} searches queued.`,'active'); break;
+    case 'query_started': trace(`Discovery query ${event.index}/${event.total}`,event.query,'active'); break;
+    case 'query_completed': trace(`Discovery query ${event.index}/${event.total} complete`,`${event.results} result(s) returned for: ${event.query}`,'success'); break;
+    case 'query_failed': trace(`Discovery query ${event.index}/${event.total} failed`,`${event.category || 'error'} • ${event.error}`,'warning'); break;
+    case 'url_discovered': trace(`Source discovered #${event.index}`,`${event.title || 'Untitled'} • ${event.url}`,'success'); break;
+    case 'discovery_completed': trace('Discovery complete',`${event.discovered} unique public source(s) accepted.`,'success'); break;
+    case 'source_started': trace(`Opening source ${event.index}/${event.total}`,event.url,'active'); break;
+    case 'source_completed': {
+      const found = `${(event.phones||[]).length} phone(s), ${(event.emails||[]).length} email(s)`;
+      const fallback = event.fallback_reason ? ` • fallback after: ${event.fallback_reason}` : '';
+      trace(`Source ${event.index}/${event.total} processed`,`${event.method} • relevance ${event.relevance} • ${found} • ${event.duration_seconds}s${fallback}`,'success');
+      (event.phones||[]).forEach(p => trace('Phone extracted from source',`${p.number}${p.extension ? ` ext ${p.extension}` : ''} • ${event.url}`,'success'));
+      (event.emails||[]).forEach(e => trace('Email extracted from source',`${e} • ${event.url}`,'success'));
+      break;
+    }
+    case 'source_failed': trace(`Source ${event.index}/${event.total} failed`,`${event.category || classifySourceError(event.error)} • ${event.error} • ${event.url}`,'warning'); break;
+    case 'extraction_completed': trace('Contact extraction pass complete',`${event.scraped} source(s) scraped • ${event.phones} unique phone(s) • ${event.emails} unique email(s)`,'success'); break;
+    case 'verification_started': trace('MX verification started',`${event.emails} email domain(s) to check.`,'active'); break;
+    case 'verification_completed': {
+      const good = (event.records||[]).filter(x => x.domain_status === 'mx_found').length;
+      trace('MX verification complete',`${good}/${(event.records||[]).length} domain(s) returned MX records.`,'success');
+      break;
+    }
+    case 'verification_skipped': trace('MX verification skipped',event.reason,'warning'); break;
+    case 'result_ready': trace('Backend result assembled',`${event.status} • discovered ${event.discovered_count} • scraped ${event.scraped_count} • relevant ${event.relevant_count} • ${event.duration_seconds}s`,'success'); break;
+    case 'complete':
+      finalPayload = event.result;
+      trace('Search response complete',`Final status: ${event.result?.status || 'unknown'}`,'success');
+      renderResult(event.result);
+      break;
+    case 'error':
+      trace('Backend search error',`${event.category || 'error'} • ${event.error}`,'error');
+      throw new Error(event.error || 'Search failed');
+  }
+}
+async function streamSearch(searchPayload) {
+  activeController = new AbortController();
+  const timeout = setTimeout(() => activeController.abort(), 185000);
+  try {
+    trace('Streaming request sent','POST /api/search/stream','active');
+    const response = await fetch('/api/search/stream', {
+      method:'POST',
+      headers:{'content-type':'application/json','accept':'application/x-ndjson'},
+      body:JSON.stringify(searchPayload),
+      signal:activeController.signal
+    });
+    trace('HTTP response received',`/api/search/stream returned HTTP ${response.status}` , response.ok ? 'success' : 'error');
+    if (response.status === 404) {
+      trace('Streaming route unavailable','Falling back to compatible /api/search request.','warning');
+      return fallbackSearch(searchPayload);
+    }
+    if (!response.ok) {
+      const data = await readResponse(response);
+      throw new Error(data.detail || data.error || `HTTP ${response.status}`);
+    }
+    if (!response.body) throw new Error('Browser did not expose the streaming response body.');
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    while (true) {
+      const {value, done} = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, {stream:true});
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        let event;
+        try { event = JSON.parse(line); }
+        catch (error) {
+          trace('Malformed stream event',`${error.message} • ${line.slice(0,180)}`,'warning');
+          continue;
+        }
+        handleStreamEvent(event);
+      }
+    }
+    if (buffer.trim()) handleStreamEvent(JSON.parse(buffer));
+    if (!finalPayload) throw new Error('Search stream closed before a final result was received.');
+    return finalPayload;
+  } finally {
+    clearTimeout(timeout);
+    activeController = null;
+  }
+}
+async function fallbackSearch(searchPayload) {
+  trace('Fallback search request sent','POST /api/search — no live source events will be available until completion.','active');
+  const response = await fetch('/api/search', {
+    method:'POST',
+    headers:{'content-type':'application/json','accept':'application/json'},
+    body:JSON.stringify(searchPayload),
+    signal:activeController?.signal
+  });
+  trace('Fallback response received',`HTTP ${response.status}`,response.ok?'success':'error');
+  const data = await readResponse(response);
+  if (!response.ok) throw new Error(data.detail || data.error || `Search failed (${response.status})`);
+  finalPayload = data.result;
+  renderResult(data.result);
+  trace('Search complete','Non-streaming compatibility route returned the final result.','success');
+  return data.result;
+}
+function renderResult(result) {
+  if (!result) return;
+  const phones = result.phones || [];
+  const emails = result.emails || [];
+  const sources = result.sources || [];
+  $('results').classList.add('show');
+  $('result-status').textContent = String(result.status || '').replaceAll('_',' ').toUpperCase();
+  $('summary-grid').innerHTML = [
+    ['Discovered',result.discovered_count ?? 0],
+    ['Scraped',result.scraped_count ?? 0],
+    ['Relevant',result.relevant_count ?? 0],
+    ['Duration',`${result.duration_seconds ?? 0}s`]
+  ].map(([label,value]) => `<div class="metric"><div class="metric-value">${esc(value)}</div><div class="metric-label">${esc(label)}</div></div>`).join('');
+  const phoneHtml = phones.length ? phones.map(x => `<span class="item">${esc(x.number)}${x.extension ? ` ext ${esc(x.extension)}` : ''}</span>`).join('') : '<span class="item">No phone numbers extracted</span>';
+  const emailHtml = emails.length ? emails.map(x => `<span class="item">${esc(x.email)} · ${esc(x.domain_status)}</span>`).join('') : '<span class="item">No emails extracted</span>';
+  const sourceHtml = sources.length ? sources.map(s => `<div class="source-card"><div class="source-title">${esc(s.title || 'Untitled source')}</div><div><a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.url)}</a></div><div class="source-meta">${esc(s.status)}${s.method ? ` · ${esc(s.method)}` : ''}${s.relevance !== undefined ? ` · relevance ${esc(s.relevance)}` : ''}${s.duration_seconds ? ` · ${esc(s.duration_seconds)}s` : ''}</div>${s.fallback_reason ? `<div class="source-meta">Fallback reason: ${esc(s.fallback_reason)}</div>` : ''}${s.error ? `<div class="source-error">${esc(classifySourceError(s.error))}: ${esc(s.error)}</div>` : ''}</div>`).join('') : '<div class="source-card">No public sources discovered.</div>';
+  $('result-content').innerHTML = `
+    <section class="result-section"><h3>Phones</h3><div class="result-body item-list">${phoneHtml}</div></section>
+    <section class="result-section"><h3>Emails</h3><div class="result-body item-list">${emailHtml}</div></section>
+    <section class="result-section"><h3>Sources</h3><div class="result-body">${sourceHtml}</div></section>`;
+  $('raw-response').textContent = JSON.stringify(result,null,2);
+  renderIssues(result);
+}
+function renderIssues(result) {
+  const issues = [];
+  const sources = result.sources || [];
+  const failed = sources.filter(s => s.status !== 'scraped');
+  const queryErrors = (result.discovery_queries || []).filter(q => q.status === 'error');
+  if (queryErrors.length) issues.push(`${queryErrors.length} discovery query or search-provider request(s) failed.`);
+  const categories = {};
+  failed.forEach(s => {
+    const label = s.error_category || classifySourceError(s.error || '');
+    categories[label] = (categories[label] || 0) + 1;
+  });
+  Object.entries(categories).forEach(([label,count]) => issues.push(`${count} source(s): ${label}.`));
+  if (result.discovered_count === 0) issues.push('Discovery returned zero usable public URLs.');
+  if (result.discovered_count > 0 && result.scraped_count === 0) issues.push('Sources were discovered, but none were successfully retrieved. Anti-bot blocks, rate limits, timeouts, or network restrictions are likely.');
+  if (result.scraped_count > 0 && !(result.phones||[]).length && !(result.emails||[]).length) issues.push('Pages were successfully retrieved, but no relevant phone/email contacts were extracted.');
+  const box = $('issue-box');
+  if (!issues.length) { box.className='issue-box'; box.innerHTML=''; return; }
+  box.className='issue-box show';
+  box.innerHTML = `<h3>What affected this run</h3><ul>${issues.map(x => `<li>${esc(x)}</li>`).join('')}</ul>`;
+}
+function resultState(result) {
+  const contacts = (result.phones||[]).length + (result.emails||[]).length;
+  const failed = (result.sources||[]).filter(x => x.status !== 'scraped').length;
+  if (contacts && failed) return ['Partial results',`Found ${contacts} contact item(s), but ${failed} source(s) could not be fully processed.`,'warning'];
+  if (contacts) return ['Search complete',`Found ${contacts} contact item(s) from ${(result.sources||[]).length} checked source(s).`,'success'];
+  if (result.status === 'blocked') return ['Sources blocked',`Public sources were discovered but could not be successfully retrieved. See the live trace for the exact source errors.`,'warning'];
+  if (result.status === 'no_results') return ['No public sources found','Try adding a company name, person, state, address, email, EIN, or another identifying value.','warning'];
+  return ['No contacts extracted',`Sources were processed, but no relevant phone numbers or emails were extracted.`,'warning'];
+}
+async function runSearch() {
+  if (searchActive) return;
+  const searchPayload = payload();
+  const values = [searchPayload.query, ...Object.values(searchPayload.fields)];
+  if (!values.some(Boolean)) {
+    setStatus('Nothing to search','Enter at least one search value before starting.','error');
+    resetTrace();
+    trace('Input validation failed','No searchable value was entered. No API request was sent.','error');
+    return;
+  }
+
+  searchActive = true;
+  finalPayload = null;
+  $('search').disabled = true;
+  $('search').textContent = 'Searching…';
+  $('results').classList.remove('show');
+  $('result-content').innerHTML = '';
+  $('raw-response').textContent = '';
+  $('run-id').textContent = `Run ${Date.now().toString(36).toUpperCase()}`;
+  resetTrace();
+  startClock();
+  trace('Search button clicked','User initiated Search & Enrich.','success');
+  trace('Frontend validation passed','At least one searchable identity value is present.','success');
+  setStatus('Checking search engine','Confirming backend readiness before extraction.','working');
+
+  try {
+    await checkHealth({retries:3, traceEvents:true});
+    setStatus('Search running','The backend is discovering and processing public sources. Live verified events appear below.','working');
+    const result = await streamSearch(searchPayload);
+    const [title,copy,state] = resultState(result);
+    setStatus(title,copy,state);
+  } catch (error) {
+    const aborted = error?.name === 'AbortError';
+    const message = aborted ? 'The browser stopped waiting after the 185-second client safety limit.' : (error?.message || 'Unknown search error');
+    trace(aborted ? 'Client timeout' : 'Search failed',message,'error');
+    setStatus(aborted ? 'Search timed out' : 'Search failed',message,'error');
+    setDiagnostic(aborted ? 'The request exceeded the browser safety limit. Check the last successful activity row to identify whether discovery or a source scrape was the last active stage.' : `Failure point: ${message}`);
+  } finally {
+    searchActive = false;
+    stopClock();
+    $('search').disabled = false;
+    $('search').textContent = 'Search & Enrich';
+    activeController = null;
+  }
+}
+$('search').addEventListener('click',runSearch);
+$('q').addEventListener('keydown',event => { if (event.key === 'Enter') { event.preventDefault(); runSearch(); }});
+document.querySelectorAll('input').forEach(input => {
+  if (input.id !== 'file' && input.id !== 'q') input.addEventListener('keydown',event => { if (event.key === 'Enter') { event.preventDefault(); runSearch(); }});
+});
+$('clear').addEventListener('click',() => {
+  if (searchActive) return;
+  ['q','company','person','phone','email','ein','state','address','proxy'].forEach(id => $(id).value='');
+  setStatus('Ready','Search fields cleared.','');
+});
+$('file').addEventListener('change',() => {
+  const file = $('file').files[0];
+  $('batchStatus').textContent = file ? `Selected: ${file.name}` : '';
+});
+$('batch').addEventListener('click', async () => {
+  const file = $('file').files[0];
+  if (!file) { $('batchStatus').textContent='Select an .xlsx workbook first.'; return; }
+  const button = $('batch');
+  button.disabled = true;
+  $('download').innerHTML='';
+  $('batchStatus').textContent='Uploading workbook…';
+  try {
+    const form = new FormData();
+    form.append('file',file);
+    form.append('concurrency','2');
+    form.append('delay','0');
+    form.append('proxy',$('proxy').value.trim());
+    form.append('verify_email_domains',String($('verify').checked));
+    form.append('use_ollama','false');
+    $('batchStatus').textContent='Processing workbook…';
+    const response = await fetch('/api/batch',{method:'POST',body:form});
+    if (!response.ok) {
+      const data = await readResponse(response);
+      throw new Error(data.detail || data.error || `Batch failed (${response.status})`);
+    }
+    const blob = await response.blob();
+    if (!blob.size) throw new Error('Backend returned an empty workbook.');
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href=url;
+    link.download=`qikreach-enriched-${Date.now()}.xlsx`;
+    link.textContent='Download enriched workbook';
+    $('download').replaceChildren(link);
+    $('batchStatus').textContent=`Complete • ${Math.round(blob.size/1024)} KB`;
+  } catch (error) {
+    $('batchStatus').textContent=`Batch failed: ${error.message}`;
+  } finally {
+    button.disabled=false;
+  }
+});
+
+checkHealth().catch(() => {});
 </script>
 </body>
 </html>
