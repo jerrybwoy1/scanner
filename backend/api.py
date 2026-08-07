@@ -61,6 +61,7 @@ DIRECTORY_DOMAINS = {
     "telephonedirectories.us", "thephoneindex.com", "areacodelocator.net", "tfrecipes.com", "local.us-info.com", "numlookup.com",
 }
 ENCYCLOPEDIA_DOMAINS = {"wikipedia.org", "wikimedia.org", "britannica.com", "simple.wikipedia.org"}
+NUMERIC_LOOKUP_DOMAINS = {"allareacodes.com", "zip-codes.com", "reportedcalls.com", "areacodelocator.net"}
 GENERIC_MAILBOXES = {"help", "support", "contact", "info", "sales", "privacy", "admin", "noreply", "no-reply", "webmaster", "me"}
 NAME_STOPWORDS = {"from", "near", "in", "at", "on", "around", "zip", "zipcode", "county", "state", "phone", "email", "address"}
 
@@ -281,12 +282,17 @@ def source_host(url: str) -> str:
     return (urlparse(clean(url)).hostname or "").lower().removeprefix("www.")
 
 
-def discovery_allowed_url(url: str, mode: str) -> bool:
-    """Keep encyclopedic pages out of contact/business searches; allow them for general topics."""
+def discovery_allowed_url(url: str, mode: str, subject: str = "") -> bool:
+    """Keep non-business reference pages out of contact searches without weakening identity checks."""
     if mode == "general":
         return True
     host = source_host(url)
-    return not any(host == domain or host.endswith(f".{domain}") for domain in ENCYCLOPEDIA_DOMAINS)
+    if any(host == domain or host.endswith(f".{domain}") for domain in ENCYCLOPEDIA_DOMAINS):
+        return False
+    numeric_business = bool(BUSINESS_HINT_RE.search(subject)) and bool(re.search(r"(?<!\d)\d{2,}(?!\d)", subject))
+    if numeric_business and any(host == domain or host.endswith(f".{domain}") for domain in NUMERIC_LOOKUP_DOMAINS):
+        return False
+    return True
 
 
 def filter_source_emails(emails: list[str], item: dict[str, str], terms: list[str]) -> list[str]:
@@ -541,7 +547,7 @@ async def discover(subject: str, proxy: str, emit: Any = None, target: int = DIS
                     key = canonical_url(url)
                     if not url or not key or key in seen or not await asyncio.to_thread(is_public_url, url):
                         continue
-                    if not discovery_allowed_url(url, mode):
+                    if not discovery_allowed_url(url, mode, subject):
                         await emit_progress(emit, "url_filtered", url=url, title=clean(result.get("title")), reason="encyclopedic source excluded for contact/business search")
                         continue
                     seen.add(key)
