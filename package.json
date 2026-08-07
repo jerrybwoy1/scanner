@@ -1,13 +1,19 @@
 {
   "name": "qikreach-cloudflare",
-  "version": "10.0.0",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy",
+    "db:init": "wrangler d1 execute qikreach-vault --remote --file=./schema.sql"
+  },
+  "dependencies": {
+    "xlsx": "0.18.5"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20240320.0",
-    "typescript": "^5.0.0",
-    "wrangler": "^3.0.0"
+    "@cloudflare/workers-types": "latest",
+    "typescript": "latest",
+    "wrangler": "latest"
   }
 }
