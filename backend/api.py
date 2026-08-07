@@ -67,6 +67,7 @@ PROVIDER_STATE: dict[str, dict[str, Any]] = {
     "tavily": {"status": "unknown" if TAVILY_API_KEY else "not_configured"},
     "ddgs_brave": {"status": "unknown"},
     "ddgs_bing": {"status": "unknown"},
+    "ddgs_bing_unquoted": {"status": "unknown"},
     "ddgs_duckduckgo": {"status": "unknown"},
 }
 
@@ -382,7 +383,7 @@ def provider_chain() -> list[tuple[str, Callable[..., Awaitable[list[dict[str, s
         chain.append(("groq_web", groq_search, ""))
     if TAVILY_API_KEY:
         chain.append(("tavily", tavily_search, ""))
-    chain.extend((("ddgs_brave", None, "brave"), ("ddgs_bing", None, "bing"), ("ddgs_duckduckgo", None, "duckduckgo")))
+    chain.extend((("ddgs_brave", None, "brave"), ("ddgs_bing", None, "bing"), ("ddgs_bing_unquoted", None, "bing_unquoted"), ("ddgs_duckduckgo", None, "duckduckgo")))
     return chain
 
 
@@ -484,6 +485,9 @@ async def groq_search(query: str, session: Any, _: str) -> list[dict[str, str]]:
 def ddgs_search(query: str, proxy: str, backend: str) -> list[dict[str, str]]:
     from ddgs import DDGS
 
+    if backend.endswith("_unquoted"):
+        query = query.strip('"')
+        backend = backend.removesuffix("_unquoted")
     kwargs: dict[str, Any] = {"timeout": 5}
     if proxy:
         kwargs["proxy"] = proxy
