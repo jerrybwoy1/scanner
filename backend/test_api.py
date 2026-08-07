@@ -81,6 +81,10 @@ class SearchBehaviorTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(source["phones"], [])
         self.assertEqual(source["details"], {})
 
+    def test_business_phrase_requires_token_boundaries(self) -> None:
+        self.assertFalse(api.identity_constraints_met("SG984, LLC company profile", ["984 LLC"]))
+        self.assertTrue(api.identity_constraints_met("984, LLC company profile", ["984 LLC"]))
+
     async def test_general_query_succeeds_with_sources_without_contacts(self) -> None:
         discovered = [{"url": "https://example.com/", "title": "Potato", "snippet": "Potato reference", "provider": "test"}]
         scraped = [{**discovered[0], "status": "scraped", "method": "static", "relevance": 5, "phones": [], "emails": [], "duration_seconds": 0.01}]

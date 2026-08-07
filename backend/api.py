@@ -666,6 +666,7 @@ def identity_constraints_met(text: str, terms: list[str]) -> bool:
     folded = text.casefold()
     digits = re.sub(r"\D", "", text)
     normalized_text = re.sub(r"[^a-z0-9]+", " ", folded).strip()
+    text_tokens = normalized_text.split()
     required_zips = {value for term in terms for value in ZIP_RE.findall(term)}
     required_emails = {value.casefold() for term in terms for value in EMAIL_RE.findall(term)}
     required_phones: set[str] = set()
@@ -678,7 +679,8 @@ def identity_constraints_met(text: str, terms: list[str]) -> bool:
         if not BUSINESS_HINT_RE.search(term):
             continue
         phrase = re.sub(r"[^a-z0-9]+", " ", term.casefold()).strip()
-        if len(phrase.split()) >= 2 and phrase not in normalized_text:
+        phrase_tokens = phrase.split()
+        if len(phrase_tokens) >= 2 and not any(text_tokens[index:index + len(phrase_tokens)] == phrase_tokens for index in range(len(text_tokens))):
             return False
     return (
         all(value.casefold() in folded for value in required_zips)
