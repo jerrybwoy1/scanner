@@ -10,4 +10,3 @@ ddgs==9.5.4
 aiohttp==3.12.15
 aiohttp-socks==0.10.1
 crawl4ai==0.7.4
-playwright==1.54.0
