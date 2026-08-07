@@ -65,6 +65,7 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
 .state-title{font-size:15px;font-weight:700;color:var(--navy)}.state-copy{font-size:14px;color:#5b6174;margin-top:4px;line-height:1.45}
 .diagnostic{margin-top:10px;padding:10px 12px;background:#fffaf0;border:1px solid #f0d58a;color:#6b5200;font-size:13px;line-height:1.45;display:none}
 .diagnostic.show{display:block}
+.live-contacts{display:none;margin-top:16px;border:1px solid #b9d8cf;background:#f4fbf8}.live-contacts.show{display:block}.live-contacts-head{padding:12px 14px;border-bottom:1px solid #cfe7de;color:var(--navy);font-size:14px;font-weight:700}.live-contacts-copy{margin:0;padding:0 14px;color:#496258;font-size:12px}.live-contacts-list{display:flex;flex-wrap:wrap;gap:8px;padding:12px 14px}.live-contact{border:1px solid #b9d8cf;background:#fff;padding:7px 9px;color:#184f39;font-size:13px;overflow-wrap:anywhere}
 .trace{margin-top:18px;border:1px solid var(--line);background:#fff}
 .trace-head{display:flex;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);background:#fafbfc}
 .trace-title{font-weight:700;color:var(--navy)}.timer{font-variant-numeric:tabular-nums;color:#5f6678;font-size:13px}
@@ -137,6 +138,11 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
           <div class="state-copy">Enter one or more search values, then start the enrichment run.</div>
         </div>
         <div id="diagnostic" class="diagnostic" aria-live="polite"></div>
+        <section id="live-contacts" class="live-contacts" aria-live="polite" aria-atomic="false">
+          <div class="live-contacts-head">Live contacts found</div>
+          <p class="live-contacts-copy">Contacts appear here immediately when the backend extracts them; the search continues in the background.</p>
+          <div id="live-contacts-list" class="live-contacts-list"></div>
+        </section>
 
         <section class="trace" aria-labelledby="trace-heading">
           <div class="trace-head"><div id="trace-heading" class="trace-title">Live Search Activity</div><div id="elapsed" class="timer">00:00</div></div>
@@ -187,6 +193,8 @@ let timerId = null;
 let watchdogId = null;
 let activeController = null;
 let finalPayload = null;
+let livePhones = new Map();
+let liveEmails = new Map();
 const SearchState = Object.freeze({
   IDLE:'IDLE', VALIDATING:'VALIDATING', CHECKING_BACKEND:'CHECKING_BACKEND', BACKEND_WAKING:'BACKEND_WAKING', CONNECTING:'CONNECTING', SEARCHING:'SEARCHING', DISCOVERING:'DISCOVERING', SCRAPING:'SCRAPING', VERIFYING:'VERIFYING', PROCESSING:'PROCESSING', SUCCESS:'SUCCESS', NO_RESULTS:'NO_RESULTS', NO_CONTACTS:'NO_CONTACTS', PARTIAL_RESULT:'PARTIAL_RESULT', TIMEOUT:'TIMEOUT', BACKEND_OFFLINE:'BACKEND_OFFLINE', NETWORK_ERROR:'NETWORK_ERROR', SERVER_ERROR:'SERVER_ERROR'
 });
@@ -238,6 +246,27 @@ function stopClock() {
 function resetTrace() {
   $('trace-list').innerHTML = '';
   setDiagnostic('');
+}
+function resetLiveContacts() {
+  livePhones = new Map();
+  liveEmails = new Map();
+  $('live-contacts-list').replaceChildren();
+  $('live-contacts').className = 'live-contacts';
+}
+function addLiveContacts(phones=[], emails=[]) {
+  phones.forEach(phone => {
+    if (phone?.number) livePhones.set(`${phone.number}|${phone.extension || ''}`, phone);
+  });
+  emails.forEach(email => {
+    if (email) liveEmails.set(String(email).toLowerCase(), String(email).toLowerCase());
+  });
+  if (!livePhones.size && !liveEmails.size) return;
+  const items = [
+    ...[...livePhones.values()].map(phone => `${phone.number}${phone.extension ? ` ext ${phone.extension}` : ''}`),
+    ...[...liveEmails.values()]
+  ];
+  $('live-contacts-list').innerHTML = items.map(item => `<span class="live-contact">${esc(item)}</span>`).join('');
+  $('live-contacts').className = 'live-contacts show';
 }
 function trace(title, detail='', state='active') {
   lastEventAt = Date.now();
@@ -329,11 +358,13 @@ function handleStreamEvent(event) {
     case 'query_failed': trace(`Discovery query ${event.index}/${event.total} failed`,`${event.category || 'error'} • ${event.error}`,'warning'); break;
     case 'url_discovered': trace(`Source discovered #${event.index}`,`${event.title || 'Untitled'} • ${event.url}`,'success'); break;
     case 'discovery_completed': trace('Discovery complete',`${event.discovered} unique public source(s) accepted.`,'success'); break;
+    case 'discovery_stopped': trace('Discovery stopped early',`${event.reason} Completed ${event.completed}/${event.total} query variation(s).`,'warning'); break;
     case 'source_started': transition(SearchState.SCRAPING); trace(`Opening source ${event.index}/${event.total}`,event.url,'active'); break;
     case 'source_completed': {
       const found = `${(event.phones||[]).length} phone(s), ${(event.emails||[]).length} email(s)`;
       const fallback = event.fallback_reason ? ` • fallback after: ${event.fallback_reason}` : '';
       trace(`Source ${event.index}/${event.total} processed`,`${event.method} • relevance ${event.relevance} • ${found} • ${event.duration_seconds}s${fallback}`,'success');
+      addLiveContacts(event.phones || [], event.emails || []);
       (event.phones||[]).forEach(p => trace('Phone extracted from source',`${p.number}${p.extension ? ` ext ${p.extension}` : ''} • ${event.url}`,'success'));
       (event.emails||[]).forEach(e => trace('Email extracted from source',`${e} • ${event.url}`,'success'));
       break;
@@ -513,6 +544,7 @@ async function runSearch() {
   $('raw-response').textContent = '';
   $('run-id').textContent = `Run ${Date.now().toString(36).toUpperCase()}`;
   resetTrace();
+  resetLiveContacts();
   startClock();
   trace('Search button clicked','User initiated Search & Enrich.','success');
   trace('Frontend validation passed','At least one searchable identity value is present.','success');

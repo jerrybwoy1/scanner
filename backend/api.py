@@ -24,7 +24,8 @@ from pydantic import BaseModel, Field
 
 MAX_URLS = 14
 MAX_UPLOAD = 10 * 1024 * 1024
-DISCOVERY_TIMEOUT = 15
+DISCOVERY_TIMEOUT = 8
+SEARCH_PROVIDER_FAILURE_LIMIT = 2
 SOURCE_TIMEOUT = 40
 TARGET_SITES = (
     "facebook.com", "linkedin.com/in", "truepeoplesearch.com", "bizapedia.com",
@@ -176,7 +177,7 @@ async def emit_progress(emit: Any, event_type: str, **payload: Any) -> None:
 
 
 def search_one_query(query: str, proxy: str) -> list[dict[str, str]]:
-    kwargs: dict[str, Any] = {"timeout": 12}
+    kwargs: dict[str, Any] = {"timeout": 6}
     if proxy:
         kwargs["proxy"] = proxy
     with DDGS(**kwargs) as client:
@@ -187,12 +188,14 @@ async def discover(queries: list[str], proxy: str, emit: Any = None) -> tuple[li
     urls: list[dict[str, str]] = []
     reports: list[dict[str, Any]] = []
     seen: set[str] = set()
+    provider_failures = 0
 
     await emit_progress(emit, "discovery_started", query_count=len(queries))
     for index, query in enumerate(queries, start=1):
         await emit_progress(emit, "query_started", index=index, total=len(queries), query=query)
         try:
             results = await asyncio.wait_for(asyncio.to_thread(search_one_query, query, proxy), timeout=DISCOVERY_TIMEOUT)
+            provider_failures = 0
             reports.append({"query": query, "status": "complete", "results": len(results)})
             await emit_progress(emit, "query_completed", index=index, total=len(queries), query=query, results=len(results))
             for result in results:
@@ -213,11 +216,18 @@ async def discover(queries: list[str], proxy: str, emit: Any = None) -> tuple[li
             message = f"Discovery query timed out after {DISCOVERY_TIMEOUT}s"
             reports.append({"query": query, "status": "error", "error": message})
             await emit_progress(emit, "query_failed", index=index, total=len(queries), query=query, error=message, category="timeout")
+            provider_failures += 1
         except Exception as exc:
             message = str(exc)
-            category = "rate_limit" if "rate" in message.lower() or "429" in message else "search_provider_error"
+            message_lower = message.lower()
+            category = "timeout" if "timeout" in message_lower else "rate_limit" if "rate" in message_lower or "429" in message else "search_provider_error"
             reports.append({"query": query, "status": "error", "error": message})
             await emit_progress(emit, "query_failed", index=index, total=len(queries), query=query, error=message, category=category)
+            provider_failures += 1
+
+        if provider_failures >= SEARCH_PROVIDER_FAILURE_LIMIT:
+            await emit_progress(emit, "discovery_stopped", completed=index, total=len(queries), reason="Search provider repeatedly timed out or failed; remaining query variations were skipped.")
+            break
 
     await emit_progress(emit, "discovery_completed", discovered=len(urls), query_reports=len(reports))
     return urls, reports
