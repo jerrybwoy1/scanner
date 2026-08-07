@@ -10,10 +10,10 @@
 <style>
 :root{
   color-scheme:light;
-  --navy:#20252d;
+  --navy:#303841;
   --blue:#475467;
   --blue2:#344054;
-  --ink:#20243a;
+  --ink:#454d58;
   --muted:#667085;
   --line:#d8dce6;
   --line2:#e9ecf2;
@@ -39,10 +39,10 @@ a{color:var(--blue);text-underline-offset:2px}
 .breadcrumb{font-size:13px;color:var(--muted);margin-bottom:24px}
 .hero{border-bottom:1px solid var(--line);padding-bottom:24px;margin-bottom:28px}
 .eyebrow{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#6d7085;margin-bottom:8px}
-h1{margin:0;color:var(--navy);font-weight:400;font-size:clamp(30px,4vw,46px);letter-spacing:-1.3px}
-.subtitle{font-size:18px;color:#53586d;line-height:1.5;margin:12px 0 0;max-width:760px}
+h1{margin:0;color:var(--navy);font-weight:400;font-size:clamp(24px,3vw,34px);letter-spacing:-.7px}
+.subtitle{font-size:15px;color:#68717d;line-height:1.5;margin:9px 0 0;max-width:760px}
 .layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;align-items:start}
-.result-column{display:grid;gap:24px;min-width:0}.results.panel{margin-top:0}.result-column>.side-stack{position:static;top:auto}
+.left-column,.result-column{display:grid;gap:24px;min-width:0}.results.panel{margin-top:0}.result-column>.side-stack{position:static;top:auto}
 .panel{border:1px solid #dfe3eb;border-radius:12px;background:#fff;box-shadow:0 4px 18px rgba(16,24,40,.055);overflow:hidden}
 .panel-head{padding:18px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:12px}
 .panel-head h2{font-size:18px;color:var(--navy);font-weight:500;margin:0}
@@ -91,7 +91,7 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
 .history-details>summary{cursor:pointer;list-style:none;padding:16px 20px;color:var(--navy);font-weight:700;display:flex;justify-content:space-between;gap:12px}.history-details>summary::after{content:"+";color:var(--blue);font-size:20px}.history-details[open]>summary::after{content:"−"}.history-list{border-top:1px solid var(--line);max-height:300px;overflow:auto}.history-empty{padding:16px 20px;color:var(--muted);font-size:13px}.history-entry{width:100%;border:0;border-bottom:1px solid var(--line2);background:#fff;text-align:left;padding:12px 20px;cursor:pointer;color:var(--ink)}.history-entry:hover,.history-entry:focus-visible{background:#f5f8ff;outline:none}.history-query{font-weight:650;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.history-meta{font-size:12px;color:var(--muted);margin-top:4px}
 .history-dialog{width:min(680px,calc(100vw - 28px));max-height:82vh;border:1px solid var(--line);border-radius:12px;padding:0;box-shadow:0 24px 70px rgba(16,24,40,.24);color:var(--ink)}.history-dialog::backdrop{background:rgba(16,26,70,.38)}.dialog-head{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--line);padding:16px 18px;display:flex;align-items:center;justify-content:space-between;gap:16px}.dialog-head h2{font-size:17px;color:var(--navy);margin:0}.dialog-close{border:1px solid var(--line);border-radius:7px;background:#fff;min-width:40px;min-height:40px;cursor:pointer;font-size:20px}.dialog-body{padding:18px;overflow:auto}.dialog-query{font-size:18px;font-weight:650;color:var(--navy);overflow-wrap:anywhere}.dialog-meta{font-size:12px;color:var(--muted);margin-top:6px}
 .issue-box{display:none;margin-top:16px;border:1px solid #f1c7c3;background:#fff7f6;padding:14px}.issue-box.show{display:block}.issue-box h3{margin:0 0 8px;color:#8f251d;font-size:14px}.issue-box ul{margin:0;padding-left:18px;font-size:13px;line-height:1.5;color:#69403c}
-@media(max-width:850px){.layout{grid-template-columns:1fr}.result-column{display:contents}.side-stack{grid-template-columns:1fr 1fr;position:static}.page{padding:26px 18px 48px}.topbar{padding:0 18px}}
+@media(max-width:850px){.layout{grid-template-columns:1fr}.left-column,.result-column{display:contents}.side-stack{grid-template-columns:1fr 1fr;position:static}.page{padding:26px 18px 48px}.topbar{padding:0 18px}}
 @media(max-width:620px){.topbar{height:58px}.brand{font-size:20px}.page{padding:22px 16px 42px}.form-grid,.advanced-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.actions{flex-direction:column}.btn{width:100%}.side-stack{grid-template-columns:1fr}.summary-grid{grid-template-columns:1fr 1fr}.metric:nth-child(2){border-right:0}.metric:nth-child(-n+2){border-bottom:1px solid var(--line)}.trace-row{grid-template-columns:58px 20px 1fr;padding:10px 10px}.status-pill span:last-child{display:none}}
 </style>
 </head>
@@ -110,6 +110,7 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
   </section>
 
   <div class="layout">
+    <section class="left-column">
     <section class="panel" aria-labelledby="search-heading">
       <div class="panel-head"><h2 id="search-heading">Search &amp; Enrich</h2><span id="run-id" class="timer"></span></div>
       <div class="panel-body">
@@ -146,18 +147,19 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
           </div>
         </section>
 
-        <section class="panel batch-panel">
-          <div class="panel-head"><h2>Spreadsheet Enrichment</h2></div>
-          <div class="panel-body">
-            <label for="file">Select Spreadsheet</label>
-            <input id="file" type="file" accept=".xlsx">
-            <button id="batch" class="btn primary" type="button" style="width:100%;margin-top:12px">Execute Batch Enrichment</button>
-            <div id="batchStatus" class="batch-status" aria-live="polite"></div>
-            <div id="download" class="download"></div>
-          </div>
-        </section>
-
       </div>
+    </section>
+
+    <section class="panel batch-panel">
+      <div class="panel-head"><h2>Spreadsheet Enrichment</h2></div>
+      <div class="panel-body">
+        <label for="file">Select Spreadsheet</label>
+        <input id="file" type="file" accept=".xlsx">
+        <button id="batch" class="btn primary" type="button" style="width:100%;margin-top:12px">Execute Batch Enrichment</button>
+        <div id="batchStatus" class="batch-status" aria-live="polite"></div>
+        <div id="download" class="download"></div>
+      </div>
+    </section>
     </section>
 
     <section class="result-column">
