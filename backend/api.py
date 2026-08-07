@@ -406,8 +406,9 @@ async def run_search(request: SearchRequest, emit: Any = None) -> dict[str, Any]
         email_records = [{"email": value, "domain_status": "not_checked"} for value in emails]
         await emit_progress(emit, "verification_skipped", reason="disabled" if not request.verify_email_domains else "no_emails")
 
+    provider_unavailable = not discovered and bool(query_reports) and all(report.get("status") == "error" for report in query_reports)
     result = {
-        "status": "success" if phone_map or emails else ("blocked" if discovered and not any(x["status"] == "scraped" for x in sources) else "no_contacts" if discovered else "no_results"),
+        "status": "success" if phone_map or emails else ("blocked" if discovered and not any(x["status"] == "scraped" for x in sources) else "no_contacts" if discovered else "search_provider_unavailable" if provider_unavailable else "no_results"),
         "identity": request.model_dump(),
         "phones": list(phone_map.values()),
         "emails": email_records,

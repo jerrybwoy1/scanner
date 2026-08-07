@@ -512,6 +512,7 @@ function resultState(result) {
   if (contacts && failed) return ['Partial results',`Found ${contacts} contact item(s), but ${failed} source(s) could not be fully processed.`,'warning'];
   if (contacts) return ['Search complete',`Found ${contacts} contact item(s) from ${(result.sources||[]).length} checked source(s).`,'success'];
   if (result.status === 'blocked') return ['Sources blocked',`Public sources were discovered but could not be successfully retrieved. See the live trace for the exact source errors.`,'warning'];
+  if (result.status === 'search_provider_unavailable') return ['Search provider unavailable','Public web search providers could not be reached. No conclusion was made about this company.','warning'];
   if (result.status === 'no_results') return ['No public sources found','Try adding a company name, person, state, address, email, EIN, or another identifying value.','warning'];
   return ['No contacts extracted',`Sources were processed, but no relevant phone numbers or emails were extracted.`,'warning'];
 }
@@ -520,6 +521,7 @@ function contactsState(result) {
   const failed = (result.sources||[]).some(source => source.status !== 'scraped');
   if (contacts && failed) return SearchState.PARTIAL_RESULT;
   if (contacts) return SearchState.SUCCESS;
+  if (result.status === 'search_provider_unavailable') return SearchState.NETWORK_ERROR;
   if (result.status === 'no_results' || !result.discovered_count) return SearchState.NO_RESULTS;
   return SearchState.NO_CONTACTS;
 }
