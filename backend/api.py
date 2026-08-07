@@ -24,7 +24,7 @@ from pydantic import BaseModel, Field
 from starlette.background import BackgroundTask
 
 MAX_URLS = 12
-DISCOVERY_TARGET = 5
+DISCOVERY_TARGET = 3
 MAX_UPLOAD = 10 * 1024 * 1024
 PROVIDER_TIMEOUT = 8
 STATIC_TIMEOUT = 6
