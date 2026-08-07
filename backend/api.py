@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import ipaddress
+import json
 import os
 import re
 import socket
@@ -18,11 +19,13 @@ import phonenumbers
 from duckduckgo_search import DDGS
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 MAX_URLS = 14
 MAX_UPLOAD = 10 * 1024 * 1024
+DISCOVERY_TIMEOUT = 15
+SOURCE_TIMEOUT = 40
 TARGET_SITES = (
     "facebook.com", "linkedin.com/in", "truepeoplesearch.com", "bizapedia.com",
     "opencorporates.com", "bbb.org", "chamberofcommerce.com", "manta.com",
@@ -31,7 +34,7 @@ EMAIL_RE = re.compile(r"(?i)(?<![\w.+-])[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,24}(
 PHONE_RE = re.compile(r"(?<!\d)(?:\+?1[\s.()/-]*)?(?:\(?[2-9]\d{2}\)?[\s.()/-]*)[2-9]\d{2}[\s.()/-]*\d{4}(?:\s*(?:x|ext\.?|extension)\s*\d{1,6})?(?!\d)", re.I)
 APP_ORIGIN = os.getenv("APP_ORIGIN", "https://scanner.jerrylang.workers.dev").rstrip("/")
 
-app = FastAPI(title="QikReach Live Enrichment API", version="1.0.0")
+app = FastAPI(title="QikReach Live Enrichment API", version="1.1.0")
 app.add_middleware(CORSMiddleware, allow_origins=[APP_ORIGIN], allow_methods=["GET", "POST", "OPTIONS"], allow_headers=["content-type", "accept"])
 
 
@@ -167,27 +170,56 @@ def discovery_queries(terms: list[str]) -> list[str]:
     return [core, f"{core} phone email contact", *(f"{core} site:{site}" for site in TARGET_SITES)]
 
 
-def discover(queries: list[str], proxy: str) -> tuple[list[dict[str, str]], list[dict[str, Any]]]:
+async def emit_progress(emit: Any, event_type: str, **payload: Any) -> None:
+    if emit:
+        await emit({"type": event_type, "at": round(time.time(), 3), **payload})
+
+
+def search_one_query(query: str, proxy: str) -> list[dict[str, str]]:
+    kwargs: dict[str, Any] = {"timeout": 12}
+    if proxy:
+        kwargs["proxy"] = proxy
+    with DDGS(**kwargs) as client:
+        return list(client.text(query, max_results=3))
+
+
+async def discover(queries: list[str], proxy: str, emit: Any = None) -> tuple[list[dict[str, str]], list[dict[str, Any]]]:
     urls: list[dict[str, str]] = []
     reports: list[dict[str, Any]] = []
     seen: set[str] = set()
-    ddgs_kwargs: dict[str, Any] = {}
-    if proxy:
-        ddgs_kwargs["proxy"] = proxy
-    with DDGS(**ddgs_kwargs) as client:
-        for query in queries:
-            try:
-                results = list(client.text(query, max_results=3))
-                reports.append({"query": query, "status": "complete", "results": len(results)})
-                for result in results:
-                    url = clean(result.get("href") or result.get("url"))
-                    if url and url not in seen and is_public_url(url):
-                        seen.add(url)
-                        urls.append({"url": url, "title": clean(result.get("title")), "snippet": clean(result.get("body"))})
-                        if len(urls) >= MAX_URLS:
-                            return urls, reports
-            except Exception as exc:
-                reports.append({"query": query, "status": "error", "error": str(exc)})
+
+    await emit_progress(emit, "discovery_started", query_count=len(queries))
+    for index, query in enumerate(queries, start=1):
+        await emit_progress(emit, "query_started", index=index, total=len(queries), query=query)
+        try:
+            results = await asyncio.wait_for(asyncio.to_thread(search_one_query, query, proxy), timeout=DISCOVERY_TIMEOUT)
+            reports.append({"query": query, "status": "complete", "results": len(results)})
+            await emit_progress(emit, "query_completed", index=index, total=len(queries), query=query, results=len(results))
+            for result in results:
+                url = clean(result.get("href") or result.get("url"))
+                if not url or url in seen:
+                    continue
+                public = await asyncio.to_thread(is_public_url, url)
+                if not public:
+                    continue
+                seen.add(url)
+                item = {"url": url, "title": clean(result.get("title")), "snippet": clean(result.get("body"))}
+                urls.append(item)
+                await emit_progress(emit, "url_discovered", index=len(urls), url=url, title=item["title"], query=query)
+                if len(urls) >= MAX_URLS:
+                    await emit_progress(emit, "discovery_completed", discovered=len(urls), query_reports=len(reports))
+                    return urls, reports
+        except asyncio.TimeoutError:
+            message = f"Discovery query timed out after {DISCOVERY_TIMEOUT}s"
+            reports.append({"query": query, "status": "error", "error": message})
+            await emit_progress(emit, "query_failed", index=index, total=len(queries), query=query, error=message, category="timeout")
+        except Exception as exc:
+            message = str(exc)
+            category = "rate_limit" if "rate" in message.lower() or "429" in message else "search_provider_error"
+            reports.append({"query": query, "status": "error", "error": message})
+            await emit_progress(emit, "query_failed", index=index, total=len(queries), query=query, error=message, category=category)
+
+    await emit_progress(emit, "discovery_completed", discovered=len(urls), query_reports=len(reports))
     return urls, reports
 
 
@@ -196,14 +228,14 @@ async def static_fetch(url: str, proxy: str) -> tuple[str, str]:
     from aiohttp_socks import ProxyConnector
 
     connector = ProxyConnector.from_url(proxy) if proxy.startswith(("socks4://", "socks5://")) else aiohttp.TCPConnector(ssl=False)
-    timeout = aiohttp.ClientTimeout(total=28)
-    kwargs: dict[str, Any] = {"allow_redirects": False, "headers": {"User-Agent": "Mozilla/5.0 QikReach/1.0"}}
+    timeout = aiohttp.ClientTimeout(total=22)
+    kwargs: dict[str, Any] = {"allow_redirects": False, "headers": {"User-Agent": "Mozilla/5.0 QikReach/1.1"}}
     if proxy.startswith(("http://", "https://")):
         kwargs["proxy"] = proxy
     async with aiohttp.ClientSession(connector=connector, timeout=timeout) as session:
         current = url
         for _ in range(5):
-            if not is_public_url(current):
+            if not await asyncio.to_thread(is_public_url, current):
                 raise RuntimeError("Unsafe or private destination blocked")
             async with session.get(current, **kwargs) as response:
                 if response.status in {301, 302, 303, 307, 308}:
@@ -220,22 +252,33 @@ async def static_fetch(url: str, proxy: str) -> tuple[str, str]:
         raise RuntimeError("Too many redirects")
 
 
-async def browser_fetch(url: str, proxy: str) -> tuple[str, str]:
+async def browser_fetch(url: str, proxy: str) -> tuple[str, str, str]:
+    static_error = ""
+    try:
+        text, method = await static_fetch(url, proxy)
+        if text:
+            return text, method, ""
+    except Exception as exc:
+        static_error = str(exc)
+
     try:
         from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig, ProxyConfig
         browser_args: dict[str, Any] = {"headless": True, "enable_stealth": True}
         if proxy:
             browser_args["proxy_config"] = ProxyConfig.from_string(proxy)
-        run = CrawlerRunConfig(wait_until="domcontentloaded", page_timeout=25000, bypass_cache=True, magic=True)
+        run = CrawlerRunConfig(wait_until="domcontentloaded", page_timeout=22000, bypass_cache=True, magic=True)
         async with AsyncWebCrawler(config=BrowserConfig(**browser_args)) as crawler:
             result = await crawler.arun(url=url, config=run)
             if result.success:
                 text = clean(getattr(result, "markdown", "")) or visible_text(clean(getattr(result, "html", "")))
                 if text:
-                    return text[:30000], "crawl4ai-chromium"
-    except Exception:
-        pass
-    return await static_fetch(url, proxy)
+                    return text[:30000], "crawl4ai-chromium", static_error
+            browser_error = clean(getattr(result, "error_message", "")) or "Crawler returned no usable page content"
+    except Exception as exc:
+        browser_error = str(exc)
+
+    combined = "; ".join(x for x in (static_error, browser_error) if x)
+    raise RuntimeError(combined or "Source could not be retrieved")
 
 
 def relevance(text: str, terms: list[str]) -> int:
@@ -264,36 +307,96 @@ async def verify_domains(emails: list[str]) -> list[dict[str, str]]:
     return await asyncio.to_thread(lambda: [check(email) for email in emails])
 
 
-async def run_search(request: SearchRequest) -> dict[str, Any]:
+def error_category(message: str) -> str:
+    text = message.lower()
+    if "429" in text or "rate" in text:
+        return "rate_limit"
+    if "403" in text or "forbidden" in text or "captcha" in text or "challenge" in text:
+        return "blocked"
+    if "timeout" in text or "timed out" in text:
+        return "timeout"
+    if "dns" in text or "name resolution" in text or "getaddrinfo" in text:
+        return "dns"
+    if "ssl" in text or "certificate" in text:
+        return "ssl"
+    if "proxy" in text:
+        return "proxy"
+    return "source_error"
+
+
+async def run_search(request: SearchRequest, emit: Any = None) -> dict[str, Any]:
     started = time.perf_counter()
+    await emit_progress(emit, "search_started")
     terms = identity(request)
     if not terms:
         raise ValueError("Enter a name, company, phone, email, EIN, address, state, or natural-language query")
     proxy = validate_proxy(request.proxy)
     queries = discovery_queries(terms)
-    discovered, query_reports = await asyncio.to_thread(discover, queries, proxy)
-    semaphore = asyncio.Semaphore(4)
+    await emit_progress(emit, "input_validated", terms=terms, verify_email_domains=request.verify_email_domains, proxy_used=bool(proxy))
+    await emit_progress(emit, "queries_prepared", count=len(queries), queries=queries)
+    discovered, query_reports = await discover(queries, proxy, emit)
+    semaphore = asyncio.Semaphore(3)
 
-    async def scrape(item: dict[str, str]) -> dict[str, Any]:
+    async def scrape(position: int, item: dict[str, str]) -> dict[str, Any]:
         async with semaphore:
+            await emit_progress(emit, "source_started", index=position, total=len(discovered), url=item["url"], title=item["title"])
+            source_started = time.perf_counter()
             try:
-                text, method = await browser_fetch(item["url"], proxy)
+                text, method, fallback_reason = await asyncio.wait_for(browser_fetch(item["url"], proxy), timeout=SOURCE_TIMEOUT)
                 score = relevance("\n".join((item["title"], item["snippet"], text)), terms)
                 phones, emails = extract_contacts(text) if score >= 2 else ([], [])
-                return {**item, "status": "scraped", "method": method, "relevance": score, "phones": phones, "emails": emails}
+                source = {
+                    **item,
+                    "status": "scraped",
+                    "method": method,
+                    "relevance": score,
+                    "phones": phones,
+                    "emails": emails,
+                    "duration_seconds": round(time.perf_counter() - source_started, 2),
+                }
+                if fallback_reason:
+                    source["fallback_reason"] = fallback_reason
+                await emit_progress(
+                    emit,
+                    "source_completed",
+                    index=position,
+                    total=len(discovered),
+                    url=item["url"],
+                    method=method,
+                    relevance=score,
+                    phones=phones,
+                    emails=emails,
+                    fallback_reason=fallback_reason,
+                    duration_seconds=source["duration_seconds"],
+                )
+                return source
+            except asyncio.TimeoutError:
+                message = f"Source exceeded {SOURCE_TIMEOUT}s safety limit"
             except Exception as exc:
-                return {**item, "status": "blocked_or_failed", "error": str(exc), "phones": [], "emails": []}
+                message = str(exc)
+            category = error_category(message)
+            await emit_progress(emit, "source_failed", index=position, total=len(discovered), url=item["url"], error=message, category=category)
+            return {**item, "status": "blocked_or_failed", "error": message, "error_category": category, "phones": [], "emails": []}
 
-    sources = await asyncio.gather(*(scrape(item) for item in discovered))
+    sources = await asyncio.gather(*(scrape(index, item) for index, item in enumerate(discovered, start=1)))
     phone_map: dict[tuple[str, str], dict[str, str]] = {}
     email_set: set[str] = set()
     for source in sources:
         for phone in source["phones"]:
             phone_map[(phone["number"], phone["extension"])] = phone
         email_set.update(source["emails"])
+
     emails = sorted(email_set)
-    email_records = await verify_domains(emails) if request.verify_email_domains else [{"email": value, "domain_status": "not_checked"} for value in emails]
-    return {
+    await emit_progress(emit, "extraction_completed", phones=len(phone_map), emails=len(emails), scraped=sum(1 for x in sources if x["status"] == "scraped"))
+    if request.verify_email_domains and emails:
+        await emit_progress(emit, "verification_started", emails=len(emails))
+        email_records = await verify_domains(emails)
+        await emit_progress(emit, "verification_completed", records=email_records)
+    else:
+        email_records = [{"email": value, "domain_status": "not_checked"} for value in emails]
+        await emit_progress(emit, "verification_skipped", reason="disabled" if not request.verify_email_domains else "no_emails")
+
+    result = {
         "status": "success" if phone_map or emails else ("blocked" if discovered and not any(x["status"] == "scraped" for x in sources) else "no_contacts" if discovered else "no_results"),
         "identity": request.model_dump(),
         "phones": list(phone_map.values()),
@@ -308,6 +411,8 @@ async def run_search(request: SearchRequest) -> dict[str, Any]:
         "duration_seconds": round(time.perf_counter() - started, 2),
         "proxy_used": bool(proxy),
     }
+    await emit_progress(emit, "result_ready", status=result["status"], discovered_count=result["discovered_count"], scraped_count=result["scraped_count"], relevant_count=result["relevant_count"], duration_seconds=result["duration_seconds"])
+    return result
 
 
 @app.get("/")
@@ -338,6 +443,42 @@ async def search(request: SearchRequest) -> JSONResponse:
         raise HTTPException(400, str(exc)) from exc
     except Exception as exc:
         raise HTTPException(500, f"Search failed: {exc}") from exc
+
+
+@app.post("/search/stream")
+async def search_stream(request: SearchRequest) -> StreamingResponse:
+    async def stream():
+        queue: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
+
+        async def emit(event: dict[str, Any]) -> None:
+            await queue.put(event)
+
+        async def runner() -> None:
+            try:
+                result = await asyncio.wait_for(run_search(request, emit), timeout=180)
+                await emit({"type": "complete", "at": round(time.time(), 3), "result": result})
+            except asyncio.TimeoutError:
+                await emit({"type": "error", "at": round(time.time(), 3), "category": "timeout", "error": "Search exceeded the 180-second safety limit"})
+            except ValueError as exc:
+                await emit({"type": "error", "at": round(time.time(), 3), "category": "invalid_input", "error": str(exc)})
+            except Exception as exc:
+                await emit({"type": "error", "at": round(time.time(), 3), "category": "server_error", "error": str(exc)})
+            finally:
+                await queue.put(None)
+
+        task = asyncio.create_task(runner())
+        try:
+            while True:
+                event = await queue.get()
+                if event is None:
+                    break
+                yield json.dumps(event, separators=(",", ":")) + "\n"
+        finally:
+            if not task.done():
+                task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+
+    return StreamingResponse(stream(), media_type="application/x-ndjson", headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
 
 
 @app.post("/batch")
