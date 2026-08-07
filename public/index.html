@@ -99,7 +99,7 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
   <section class="hero">
     <div class="eyebrow">Business intelligence</div>
     <h1>Lead Intelligence</h1>
-    <p class="subtitle">Search, verify, enrich, and diagnose business contact intelligence with a live trace of every verifiable step.</p>
+    <p class="subtitle">Search, verify, enrich, and save business contact intelligence.</p>
   </section>
 
   <div class="layout">
@@ -187,6 +187,10 @@ let timerId = null;
 let watchdogId = null;
 let activeController = null;
 let finalPayload = null;
+const SearchState = Object.freeze({
+  IDLE:'IDLE', VALIDATING:'VALIDATING', CHECKING_BACKEND:'CHECKING_BACKEND', BACKEND_WAKING:'BACKEND_WAKING', CONNECTING:'CONNECTING', SEARCHING:'SEARCHING', DISCOVERING:'DISCOVERING', SCRAPING:'SCRAPING', VERIFYING:'VERIFYING', PROCESSING:'PROCESSING', SUCCESS:'SUCCESS', NO_RESULTS:'NO_RESULTS', NO_CONTACTS:'NO_CONTACTS', PARTIAL_RESULT:'PARTIAL_RESULT', TIMEOUT:'TIMEOUT', BACKEND_OFFLINE:'BACKEND_OFFLINE', NETWORK_ERROR:'NETWORK_ERROR', SERVER_ERROR:'SERVER_ERROR'
+});
+let currentSearchState = SearchState.IDLE;
 
 function formatElapsed(ms) {
   const total = Math.max(0, Math.floor(ms / 1000));
@@ -198,10 +202,13 @@ function setBackend(state, text) {
   pill.className = `status-pill ${state}`;
   $('backend-label').textContent = text;
 }
-function setStatus(title, copy, state='') {
+function transition(state) {
+  currentSearchState = state;
+}
+function setStatus(title, copy, state='', technicalDetails='') {
   const el = $('status');
   el.className = `search-state ${state}`.trim();
-  el.innerHTML = `<div class="state-title">${esc(title)}</div><div class="state-copy">${esc(copy)}</div>`;
+  el.innerHTML = `<div class="state-title">${esc(title)}</div><div class="state-copy">${esc(copy)}</div>${technicalDetails ? `<details class="tech"><summary>Technical Details</summary><pre>${esc(technicalDetails)}</pre></details>` : ''}`;
 }
 function setDiagnostic(text='') {
   const el = $('diagnostic');
@@ -285,6 +292,7 @@ async function checkHealth({retries=0, traceEvents=false}={}) {
       return data;
     } catch (error) {
       if (attempt < retries) {
+        transition(SearchState.BACKEND_WAKING);
         setBackend('waking','Backend Waking');
         $('health').textContent = 'Backend may be waking from Render sleep. Retrying…';
         if (traceEvents) trace('Backend not ready yet', `${error.message}. Waiting before retry.`, 'warning');
@@ -312,16 +320,16 @@ function handleStreamEvent(event) {
   lastEventAt = Date.now();
   setDiagnostic('');
   switch (event.type) {
-    case 'search_started': trace('Backend search pipeline started','Request accepted by Python backend.','success'); break;
+    case 'search_started': transition(SearchState.SEARCHING); trace('Backend search pipeline started','Request accepted by Python backend.','success'); break;
     case 'input_validated': trace('Search inputs validated',`${(event.terms||[]).length} identity term(s) • MX verification ${event.verify_email_domains?'on':'off'} • proxy ${event.proxy_used?'on':'off'}`,'success'); break;
-    case 'queries_prepared': trace('Discovery queries prepared',`${event.count} query variations generated.`,'success'); break;
-    case 'discovery_started': trace('Public-source discovery started',`${event.query_count} searches queued.`,'active'); break;
+    case 'queries_prepared': transition(SearchState.DISCOVERING); trace('Discovery queries prepared',`${event.count} query variations generated.`,'success'); break;
+    case 'discovery_started': transition(SearchState.DISCOVERING); trace('Public-source discovery started',`${event.query_count} searches queued.`,'active'); break;
     case 'query_started': trace(`Discovery query ${event.index}/${event.total}`,event.query,'active'); break;
     case 'query_completed': trace(`Discovery query ${event.index}/${event.total} complete`,`${event.results} result(s) returned for: ${event.query}`,'success'); break;
     case 'query_failed': trace(`Discovery query ${event.index}/${event.total} failed`,`${event.category || 'error'} • ${event.error}`,'warning'); break;
     case 'url_discovered': trace(`Source discovered #${event.index}`,`${event.title || 'Untitled'} • ${event.url}`,'success'); break;
     case 'discovery_completed': trace('Discovery complete',`${event.discovered} unique public source(s) accepted.`,'success'); break;
-    case 'source_started': trace(`Opening source ${event.index}/${event.total}`,event.url,'active'); break;
+    case 'source_started': transition(SearchState.SCRAPING); trace(`Opening source ${event.index}/${event.total}`,event.url,'active'); break;
     case 'source_completed': {
       const found = `${(event.phones||[]).length} phone(s), ${(event.emails||[]).length} email(s)`;
       const fallback = event.fallback_reason ? ` • fallback after: ${event.fallback_reason}` : '';
@@ -332,14 +340,14 @@ function handleStreamEvent(event) {
     }
     case 'source_failed': trace(`Source ${event.index}/${event.total} failed`,`${event.category || classifySourceError(event.error)} • ${event.error} • ${event.url}`,'warning'); break;
     case 'extraction_completed': trace('Contact extraction pass complete',`${event.scraped} source(s) scraped • ${event.phones} unique phone(s) • ${event.emails} unique email(s)`,'success'); break;
-    case 'verification_started': trace('MX verification started',`${event.emails} email domain(s) to check.`,'active'); break;
+    case 'verification_started': transition(SearchState.VERIFYING); trace('MX verification started',`${event.emails} email domain(s) to check.`,'active'); break;
     case 'verification_completed': {
       const good = (event.records||[]).filter(x => x.domain_status === 'mx_found').length;
       trace('MX verification complete',`${good}/${(event.records||[]).length} domain(s) returned MX records.`,'success');
       break;
     }
     case 'verification_skipped': trace('MX verification skipped',event.reason,'warning'); break;
-    case 'result_ready': trace('Backend result assembled',`${event.status} • discovered ${event.discovered_count} • scraped ${event.scraped_count} • relevant ${event.relevant_count} • ${event.duration_seconds}s`,'success'); break;
+    case 'result_ready': transition(SearchState.PROCESSING); trace('Backend result assembled',`${event.status} • discovered ${event.discovered_count} • scraped ${event.scraped_count} • relevant ${event.relevant_count} • ${event.duration_seconds}s`,'success'); break;
     case 'complete':
       finalPayload = event.result;
       trace('Search response complete',`Final status: ${event.result?.status || 'unknown'}`,'success');
@@ -354,6 +362,7 @@ async function streamSearch(searchPayload) {
   activeController = new AbortController();
   const timeout = setTimeout(() => activeController.abort(), 185000);
   try {
+    transition(SearchState.CONNECTING);
     trace('Streaming request sent','POST /api/search/stream','active');
     const response = await fetch('/api/search/stream', {
       method:'POST',
@@ -368,7 +377,9 @@ async function streamSearch(searchPayload) {
     }
     if (!response.ok) {
       const data = await readResponse(response);
-      throw new Error(data.detail || data.error || `HTTP ${response.status}`);
+      const error = new Error(data.detail || data.error || `HTTP ${response.status}`);
+      error.status = response.status;
+      throw error;
     }
     if (!response.body) throw new Error('Browser did not expose the streaming response body.');
     const reader = response.body.getReader();
@@ -400,6 +411,7 @@ async function streamSearch(searchPayload) {
   }
 }
 async function fallbackSearch(searchPayload) {
+  transition(SearchState.SEARCHING);
   trace('Fallback search request sent','POST /api/search — no live source events will be available until completion.','active');
   const response = await fetch('/api/search', {
     method:'POST',
@@ -409,7 +421,7 @@ async function fallbackSearch(searchPayload) {
   });
   trace('Fallback response received',`HTTP ${response.status}`,response.ok?'success':'error');
   const data = await readResponse(response);
-  if (!response.ok) throw new Error(data.detail || data.error || `Search failed (${response.status})`);
+  if (!response.ok) { const error = new Error(data.detail || data.error || `Search failed (${response.status})`); error.status = response.status; throw error; }
   finalPayload = data.result;
   renderResult(data.result);
   trace('Search complete','Non-streaming compatibility route returned the final result.','success');
@@ -430,11 +442,16 @@ function renderResult(result) {
   ].map(([label,value]) => `<div class="metric"><div class="metric-value">${esc(value)}</div><div class="metric-label">${esc(label)}</div></div>`).join('');
   const phoneHtml = phones.length ? phones.map(x => `<span class="item">${esc(x.number)}${x.extension ? ` ext ${esc(x.extension)}` : ''}</span>`).join('') : '<span class="item">No phone numbers extracted</span>';
   const emailHtml = emails.length ? emails.map(x => `<span class="item">${esc(x.email)} · ${esc(x.domain_status)}</span>`).join('') : '<span class="item">No emails extracted</span>';
-  const sourceHtml = sources.length ? sources.map(s => `<div class="source-card"><div class="source-title">${esc(s.title || 'Untitled source')}</div><div><a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.url)}</a></div><div class="source-meta">${esc(s.status)}${s.method ? ` · ${esc(s.method)}` : ''}${s.relevance !== undefined ? ` · relevance ${esc(s.relevance)}` : ''}${s.duration_seconds ? ` · ${esc(s.duration_seconds)}s` : ''}</div>${s.fallback_reason ? `<div class="source-meta">Fallback reason: ${esc(s.fallback_reason)}</div>` : ''}${s.error ? `<div class="source-error">${esc(classifySourceError(s.error))}: ${esc(s.error)}</div>` : ''}</div>`).join('') : '<div class="source-card">No public sources discovered.</div>';
+  const identity = result.identity || {};
+  const identityValues = [['Core query',identity.query],['Company',identity.fields?.company],['Person / Owner',identity.fields?.person],['Known phone',identity.fields?.phone],['Known email',identity.fields?.email]].filter(([,value]) => value);
+  const identityHtml = identityValues.length ? identityValues.map(([label,value]) => `<span class="item"><strong>${esc(label)}:</strong> ${esc(value)}</span>`).join('') : '<span class="item">No identity details returned.</span>';
+  const sourceHtml = sources.length ? sources.map(s => { let sourceDomain = 'Unknown domain'; try { sourceDomain = new URL(s.url).hostname; } catch {} return `<div class="source-card"><div class="source-title">${esc(s.title || 'Untitled source')}</div><div class="source-meta">${esc(sourceDomain)}</div><div><a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.url)}</a></div><div class="source-meta">${esc(s.status)}${s.method ? ` · ${esc(s.method)}` : ''}${s.relevance !== undefined ? ` · relevance ${esc(s.relevance)}` : ''}${s.duration_seconds ? ` · ${esc(s.duration_seconds)}s` : ''}</div>${s.fallback_reason ? `<div class="source-meta">Fallback reason: ${esc(s.fallback_reason)}</div>` : ''}${s.error ? `<div class="source-error">${esc(classifySourceError(s.error))}: ${esc(s.error)}</div>` : ''}</div>`; }).join('') : '<div class="source-card">No public sources discovered.</div>';
   $('result-content').innerHTML = `
+    <section class="result-section"><h3>Search Identity</h3><div class="result-body item-list">${identityHtml}</div></section>
     <section class="result-section"><h3>Phones</h3><div class="result-body item-list">${phoneHtml}</div></section>
     <section class="result-section"><h3>Emails</h3><div class="result-body item-list">${emailHtml}</div></section>
-    <section class="result-section"><h3>Sources</h3><div class="result-body">${sourceHtml}</div></section>`;
+    <section class="result-section"><h3>Sources</h3><div class="result-body">${sourceHtml}</div></section>
+    <section class="result-section"><h3>Search Summary</h3><div class="result-body item-list"><span class="item">Status: ${esc(result.status || 'unknown')}</span><span class="item">Discovered: ${esc(result.discovered_count ?? 0)}</span><span class="item">Scraped: ${esc(result.scraped_count ?? 0)}</span><span class="item">Relevant: ${esc(result.relevant_count ?? 0)}</span><span class="item">Duration: ${esc(result.duration_seconds ?? '—')}s</span><span class="item">Proxy used: ${result.proxy_used ? 'Yes' : 'No'}</span></div></section>`;
   $('raw-response').textContent = JSON.stringify(result,null,2);
   renderIssues(result);
 }
@@ -467,8 +484,17 @@ function resultState(result) {
   if (result.status === 'no_results') return ['No public sources found','Try adding a company name, person, state, address, email, EIN, or another identifying value.','warning'];
   return ['No contacts extracted',`Sources were processed, but no relevant phone numbers or emails were extracted.`,'warning'];
 }
+function contactsState(result) {
+  const contacts = (result.phones||[]).length + (result.emails||[]).length;
+  const failed = (result.sources||[]).some(source => source.status !== 'scraped');
+  if (contacts && failed) return SearchState.PARTIAL_RESULT;
+  if (contacts) return SearchState.SUCCESS;
+  if (result.status === 'no_results' || !result.discovered_count) return SearchState.NO_RESULTS;
+  return SearchState.NO_CONTACTS;
+}
 async function runSearch() {
   if (searchActive) return;
+  transition(SearchState.VALIDATING);
   const searchPayload = payload();
   const values = [searchPayload.query, ...Object.values(searchPayload.fields)];
   if (!values.some(Boolean)) {
@@ -490,6 +516,7 @@ async function runSearch() {
   startClock();
   trace('Search button clicked','User initiated Search & Enrich.','success');
   trace('Frontend validation passed','At least one searchable identity value is present.','success');
+  transition(SearchState.CHECKING_BACKEND);
   setStatus('Checking search engine','Confirming backend readiness before extraction.','working');
 
   try {
@@ -497,12 +524,17 @@ async function runSearch() {
     setStatus('Search running','The backend is discovering and processing public sources. Live verified events appear below.','working');
     const result = await streamSearch(searchPayload);
     const [title,copy,state] = resultState(result);
+    transition(contactsState(result));
     setStatus(title,copy,state);
   } catch (error) {
     const aborted = error?.name === 'AbortError';
     const message = aborted ? 'The browser stopped waiting after the 185-second client safety limit.' : (error?.message || 'Unknown search error');
+    const status = Number(error?.status || 0);
+    const kind = aborted || status === 504 ? SearchState.TIMEOUT : status === 502 || status === 503 ? SearchState.BACKEND_OFFLINE : status >= 500 ? SearchState.SERVER_ERROR : status ? SearchState.SERVER_ERROR : SearchState.NETWORK_ERROR;
+    transition(kind);
     trace(aborted ? 'Client timeout' : 'Search failed',message,'error');
-    setStatus(aborted ? 'Search timed out' : 'Search failed',message,'error');
+    const presentation = kind === SearchState.TIMEOUT ? ['Search took longer than expected.','Some sites may have delayed or blocked the request.'] : kind === SearchState.BACKEND_OFFLINE ? ['Search engine is currently unavailable.','The backend could not be reached.'] : kind === SearchState.NETWORK_ERROR ? ['Network connection interrupted.','Check your connection and try again.'] : ['The search engine returned an unexpected error.','Please try again shortly.'];
+    setStatus(presentation[0],presentation[1],'error',`HTTP status: ${status || 'not received'}\nRequest stage: ${kind}\nElapsed: ${elapsed()}\nBackend error: ${message}`);
     setDiagnostic(aborted ? 'The request exceeded the browser safety limit. Check the last successful activity row to identify whether discovery or a source scrape was the last active stage.' : `Failure point: ${message}`);
   } finally {
     searchActive = false;
