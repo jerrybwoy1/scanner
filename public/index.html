@@ -278,6 +278,9 @@ function sourceSnippet(source) {
   const snippet = String(source?.snippet || '').replace(/\s+/g,' ').trim();
   return snippet ? `<div class="source-snippet">${esc(snippet.slice(0,700))}${snippet.length > 700 ? '…' : ''}</div>` : '';
 }
+function extractedFields(details={}) {
+  return Object.entries({business_type:'business type',address:'address',owner:'owner',summary:'page summary'}).filter(([key]) => details?.[key]).map(([,label]) => label);
+}
 function businessDetailsHtml(details=[]) {
   const fields = [['business_type','Business type'],['address','Address'],['owner','Owner'],['summary','What the source says']];
   const cards = details.flatMap(detail => fields.filter(([key]) => detail?.[key]).map(([key,label]) => `<div class="detail-card"><div class="detail-label">${label}</div><div class="detail-value">${esc(detail[key])}</div><div class="detail-source">From ${esc(detail.source_title || sourceDomain(detail.source_url || ''))}</div></div>`));
@@ -477,21 +480,22 @@ function handleStreamEvent(event) {
     case 'query_started': trace(`Trying ${String(event.provider || 'search provider').replaceAll('_',' ')}`,event.query,'active'); break;
     case 'query_completed': trace(`${String(event.provider || 'Search provider').replaceAll('_',' ')} complete`,`${event.results} unique public result(s) accepted.`,'success'); break;
     case 'query_failed': trace(`${String(event.provider || 'Search provider').replaceAll('_',' ')} failed`,`${event.category || 'error'} • ${event.error}`,'warning'); break;
-    case 'url_discovered': recordLiveSource(event,'discovered'); trace(`Source discovered #${event.index}`,`${event.title || 'Untitled'} • ${event.url}`,'success'); break;
+    case 'url_discovered': recordLiveSource(event,'discovered'); trace(`Source discovered #${event.index}`,`${event.title || 'Untitled'} • ${sourceDomain(event.url)}`,'success'); break;
     case 'discovery_completed': trace('Discovery complete',`${event.discovered} unique public source(s) accepted.`,'success'); break;
     case 'discovery_stopped': trace('Discovery target reached',`${event.reason} Checked ${event.completed}/${event.total} provider(s).`,'success'); break;
-    case 'source_started': transition(SearchState.SCRAPING); recordLiveSource(event,'opening'); trace(`Opening source ${event.index}/${event.total}`,event.url,'active'); break;
+    case 'source_started': transition(SearchState.SCRAPING); recordLiveSource(event,'opening'); trace(`Opening source ${event.index}/${event.total}`,`Checking ${sourceDomain(event.url)} for business name, address, owner, phones, emails, and page context.`,'active'); break;
     case 'source_completed': {
       const found = `${(event.phones||[]).length} phone(s), ${(event.emails||[]).length} email(s)`;
       const fallback = event.fallback_reason ? ` • fallback after: ${event.fallback_reason}` : '';
-      trace(`Source ${event.index}/${event.total} processed`,`${event.method} • relevance ${event.relevance} • identity ${event.identity_match === false ? 'not confirmed' : 'matched'} • ${found} • ${event.duration_seconds}s${fallback}`,'success');
+      const fields = extractedFields(event.details);
+      trace(`Source ${event.index}/${event.total} processed`,`${event.method} • relevance ${event.relevance} • identity ${event.identity_match === false ? 'not confirmed' : 'matched'} • ${found}${fields.length ? ` • extracted ${fields.join(', ')}` : ' • no additional fields found'} • ${event.duration_seconds}s${fallback}`,'success');
       recordLiveSource(event,'scraped');
       addLiveContacts(event.phones || [], event.emails || [], event.url);
-      (event.phones||[]).forEach(p => trace('Phone extracted from source',`${p.number}${p.extension ? ` ext ${p.extension}` : ''}${p.line_type ? ` • ${p.line_type}` : ''} • ${event.url}`,'success'));
-      (event.emails||[]).forEach(e => trace('Email extracted from source',`${e} • ${event.url}`,'success'));
+      (event.phones||[]).forEach(p => trace('Phone extracted from source',`${p.number}${p.extension ? ` ext ${p.extension}` : ''}${p.line_type ? ` • ${p.line_type}` : ''} • ${sourceDomain(event.url)}`,'success'));
+      (event.emails||[]).forEach(e => trace('Email extracted from source',`${e} • ${sourceDomain(event.url)}`,'success'));
       break;
     }
-    case 'source_failed': recordLiveSource(event,'failed'); trace(`Source ${event.index}/${event.total} failed`,`${event.category || classifySourceError(event.error)} • ${event.error} • ${event.url}`,'warning'); break;
+    case 'source_failed': recordLiveSource(event,'failed'); trace(`Source ${event.index}/${event.total} failed`,`${event.category || classifySourceError(event.error)} • ${event.error} • ${sourceDomain(event.url)}`,'warning'); break;
     case 'extraction_completed': trace('Contact extraction pass complete',`${event.scraped} source(s) scraped • ${event.phones} unique phone(s) • ${event.emails} unique email(s)`,'success'); break;
     case 'verification_started': transition(SearchState.VERIFYING); trace('MX verification started',`${event.emails} email domain(s) to check.`,'active'); break;
     case 'verification_completed': {
