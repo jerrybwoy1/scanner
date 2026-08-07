@@ -15,7 +15,7 @@ from urllib.parse import urlparse
 
 import pandas as pd
 import phonenumbers
-from ddgs import DDGS
+from duckduckgo_search import DDGS
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
@@ -318,13 +318,13 @@ async def root() -> dict[str, str]:
 @app.get("/health")
 async def health() -> dict[str, Any]:
     modules: dict[str, bool] = {}
-    for module in ("ddgs", "crawl4ai", "aiohttp", "aiohttp_socks", "pandas", "openpyxl", "phonenumbers", "dns"):
+    for module in ("duckduckgo_search", "crawl4ai", "aiohttp", "aiohttp_socks", "pandas", "openpyxl", "phonenumbers", "dns"):
         try:
             __import__(module)
             modules[module] = True
         except Exception:
             modules[module] = False
-    return {"ok": modules["ddgs"] and modules["aiohttp"], "search_ready": modules["ddgs"] and modules["aiohttp"], "browser_crawler_ready": modules["crawl4ai"], "proxy_ready": modules["aiohttp_socks"], "batch_ready": modules["pandas"] and modules["openpyxl"], "modules": modules}
+    return {"ok": modules["duckduckgo_search"] and modules["aiohttp"], "search_ready": modules["duckduckgo_search"] and modules["aiohttp"], "browser_crawler_ready": modules["crawl4ai"], "proxy_ready": modules["aiohttp_socks"], "batch_ready": modules["pandas"] and modules["openpyxl"], "modules": modules}
 
 
 @app.post("/search")
