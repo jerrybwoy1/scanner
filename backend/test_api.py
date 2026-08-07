@@ -26,6 +26,7 @@ class SearchBehaviorTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(phones)
         self.assertIn("line_type", phones[0])
         self.assertIn("region", phones[0])
+        self.assertIsNone(api.normalize_phone("13107470"))
 
     def test_zip_constraint_blocks_generic_person_directory_contacts(self) -> None:
         item = {"url": "https://example.com/john-doe", "title": "John Doe", "snippet": "People directory", "provider": "test"}

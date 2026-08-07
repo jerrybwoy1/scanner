@@ -185,6 +185,8 @@ def normalize_phone(raw: str) -> dict[str, str] | None:
         parsed = phonenumbers.parse(raw, "US")
         if not phonenumbers.is_valid_number(parsed):
             return None
+        if parsed.country_code == 1 and len(str(parsed.national_number)) != 10:
+            return None
         phone_types = {
             phonenumbers.PhoneNumberType.MOBILE: "mobile",
             phonenumbers.PhoneNumberType.FIXED_LINE: "landline",
