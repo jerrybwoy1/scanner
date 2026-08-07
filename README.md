@@ -21,8 +21,9 @@ The public API contract is:
 Discovery uses the first available provider and falls back automatically:
 
 1. Gemini 2.5 Flash with Google Search grounding when `GEMINI_API_KEY` is configured.
-2. Tavily when `TAVILY_API_KEY` is configured.
-3. DDGS Brave and DuckDuckGo backends as best-effort, keyless fallbacks.
+2. Groq Compound web search when `GROQ_API_KEY` is configured.
+3. Tavily when `TAVILY_API_KEY` is configured.
+4. DDGS Brave and DuckDuckGo backends as best-effort, keyless fallbacks.
 
 Configure provider keys only in the Render environment. Never expose them in the Worker or browser source.
 
@@ -41,6 +42,7 @@ GEMINI_API_KEY=your-server-side-key
 Optional fallback:
 
 ```text
+GROQ_API_KEY=your-server-side-key
 TAVILY_API_KEY=your-server-side-key
 ```
 

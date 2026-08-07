@@ -23,13 +23,13 @@
   --shadow:0 2px 10px rgba(16,24,40,.08);
 }
 *{box-sizing:border-box}
-html,body{margin:0;min-height:100%;background:#fff;color:var(--ink);font-family:Arial,"Helvetica Neue",Helvetica,sans-serif}
+html,body{margin:0;min-height:100%;background:#f7f9fc;color:var(--ink);font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 body{overflow-x:hidden}
 button,input{font:inherit}
 a{color:var(--blue);text-underline-offset:2px}
-.topbar{height:64px;border-bottom:1px solid #cfd4df;box-shadow:0 2px 7px rgba(16,24,40,.08);display:flex;align-items:center;justify-content:space-between;padding:0 max(20px,calc((100vw - 1180px)/2));position:sticky;top:0;background:#fff;z-index:20}
+.topbar{height:64px;border-bottom:1px solid #dfe3eb;box-shadow:0 1px 5px rgba(16,24,40,.05);display:flex;align-items:center;justify-content:space-between;padding:0 max(20px,calc((100vw - 1180px)/2));position:sticky;top:0;background:rgba(255,255,255,.96);z-index:20}
 .brand{display:flex;align-items:center;gap:10px;color:var(--navy);font-size:22px;font-weight:700;letter-spacing:-.5px}
-.brand-mark{width:28px;height:28px;border:2px solid var(--blue);display:grid;place-items:center;font-size:14px;color:var(--blue);font-weight:800}
+.brand-mark{width:30px;height:30px;border-radius:8px;background:var(--navy);display:grid;place-items:center;font-size:14px;color:#fff;font-weight:800;box-shadow:0 3px 9px rgba(16,26,70,.18)}
 .status-pill{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:999px;padding:8px 12px;font-size:13px;color:var(--muted);background:#fff}
 .status-dot{width:8px;height:8px;border-radius:50%;background:#98a2b3}.status-pill.online .status-dot{background:var(--success)}.status-pill.waking .status-dot{background:#f0b429}.status-pill.offline .status-dot{background:var(--danger)}
 .page{max-width:1180px;margin:0 auto;padding:34px 24px 60px}
@@ -39,25 +39,26 @@ a{color:var(--blue);text-underline-offset:2px}
 h1{margin:0;color:var(--navy);font-weight:400;font-size:clamp(30px,4vw,46px);letter-spacing:-1.3px}
 .subtitle{font-size:18px;color:#53586d;line-height:1.5;margin:12px 0 0;max-width:760px}
 .layout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(300px,.8fr);gap:24px;align-items:start}
-.panel{border:1px solid var(--line);background:#fff}
+.panel{border:1px solid #dfe3eb;border-radius:12px;background:#fff;box-shadow:0 4px 18px rgba(16,24,40,.055);overflow:hidden}
 .panel-head{padding:18px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:12px}
 .panel-head h2{font-size:18px;color:var(--navy);font-weight:600;margin:0}
 .panel-body{padding:20px}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .field.full{grid-column:1/-1}
-label{display:block;color:#34384e;font-size:13px;font-weight:600;margin-bottom:7px}
-input[type=text],input[type=search],input[type=tel],input[type=email],input[type=file]{width:100%;min-height:46px;border:1px solid #adb5c5;background:#fff;color:var(--ink);padding:10px 12px;border-radius:2px;outline:none}
+label{display:block;color:#34384e;font-size:13px;font-weight:650;margin-bottom:7px}
+input[type=text],input[type=search],input[type=tel],input[type=email],input[type=file]{width:100%;min-height:48px;border:1px solid #b6bfce;background:#fff;color:var(--ink);padding:11px 13px;border-radius:8px;outline:none}
 input:focus{border-color:var(--blue);box-shadow:0 0 0 2px rgba(21,87,214,.12)}
+.field-help{margin:7px 0 0;color:var(--muted);font-size:12px;line-height:1.45}
 .actions{display:flex;gap:12px;align-items:center;margin-top:18px}
-.btn{min-height:46px;border:1px solid var(--blue);border-radius:4px;padding:0 20px;font-weight:700;cursor:pointer;background:#fff;color:var(--blue)}
+.btn{min-height:46px;border:1px solid var(--blue);border-radius:8px;padding:0 20px;font-weight:700;cursor:pointer;background:#fff;color:var(--blue)}
 .btn.primary{background:var(--blue);color:#fff}.btn.secondary{border-color:#98a2b3;color:#344054}.btn:disabled{opacity:.55;cursor:wait}
-details.advanced{border-top:1px solid var(--line2);margin-top:20px;padding-top:4px}
-details.advanced summary{cursor:pointer;color:var(--navy);font-weight:600;padding:13px 0;list-style:none}
+details.advanced{border:1px solid var(--line2);border-radius:8px;margin-top:18px;padding:0 14px;background:#fafcff}
+details.advanced summary{cursor:pointer;color:var(--navy);font-weight:650;padding:13px 0;list-style:none}
 details.advanced summary::after{content:"+";float:right;color:var(--blue);font-size:20px}details[open].advanced summary::after{content:"−"}
 .advanced-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:6px 0 4px}
 .check{display:flex;align-items:center;gap:9px;margin-top:14px;color:#475467;font-size:14px}.check input{width:17px;height:17px}
 .health-line{display:flex;align-items:center;gap:8px;padding:12px 14px;background:var(--soft);border:1px solid var(--line2);margin-top:18px;font-size:13px;color:#475467}
-.search-state{margin-top:16px;border:1px solid var(--line);padding:15px 16px;background:#fff}
+.search-state{margin-top:16px;border:1px solid var(--line);border-radius:8px;padding:15px 16px;background:#fff}
 .search-state.working{border-left:4px solid var(--blue);background:var(--softblue)}
 .search-state.success{border-left:4px solid var(--success)}
 .search-state.warning{border-left:4px solid #e0a100;background:#fffaf0}
@@ -65,27 +66,28 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
 .state-title{font-size:15px;font-weight:700;color:var(--navy)}.state-copy{font-size:14px;color:#5b6174;margin-top:4px;line-height:1.45}
 .diagnostic{margin-top:10px;padding:10px 12px;background:#fffaf0;border:1px solid #f0d58a;color:#6b5200;font-size:13px;line-height:1.45;display:none}
 .diagnostic.show{display:block}
-.live-contacts{display:none;margin-top:16px;border:1px solid #b9d8cf;background:#f4fbf8}.live-contacts.show{display:block}.live-contacts-head{padding:12px 14px;border-bottom:1px solid #cfe7de;color:var(--navy);font-size:14px;font-weight:700}.live-contacts-copy{margin:0;padding:0 14px;color:#496258;font-size:12px}.live-contacts-list{display:flex;flex-wrap:wrap;gap:8px;padding:12px 14px}.live-contact{border:1px solid #b9d8cf;background:#fff;padding:7px 9px;color:#184f39;font-size:13px;overflow-wrap:anywhere}
-.trace{margin-top:18px;border:1px solid var(--line);background:#fff}
+.trace{margin-top:18px;border:1px solid var(--line);border-radius:8px;background:#fff;overflow:hidden}
 .trace-head{display:flex;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);background:#fafbfc}
 .trace-title{font-weight:700;color:var(--navy)}.timer{font-variant-numeric:tabular-nums;color:#5f6678;font-size:13px}
-.trace-list{max-height:430px;overflow:auto;padding:4px 0}
-.trace-row{display:grid;grid-template-columns:68px 24px 1fr;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line2);font-size:13px;line-height:1.35}
+.trace-list{max-height:210px;overflow:auto;padding:3px 0}
+.trace-row{display:grid;grid-template-columns:62px 20px 1fr;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line2);font-size:12px;line-height:1.35}
 .trace-row:last-child{border-bottom:0}.trace-time{color:#81889a;font-variant-numeric:tabular-nums}.trace-icon{font-weight:800;text-align:center}
 .trace-row.success .trace-icon{color:var(--success)}.trace-row.warning .trace-icon{color:var(--warning)}.trace-row.error .trace-icon{color:var(--danger)}.trace-row.active .trace-icon{color:var(--blue)}
 .trace-main{min-width:0}.trace-main strong{color:#30364b}.trace-detail{color:#667085;margin-top:3px;overflow-wrap:anywhere}
 .results{margin-top:24px;display:none}.results.show{display:block}
 .summary-grid{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);margin-bottom:18px}
 .metric{padding:15px;border-right:1px solid var(--line)}.metric:last-child{border-right:0}.metric-value{font-size:24px;color:var(--navy)}.metric-label{font-size:12px;color:var(--muted);margin-top:4px}
-.result-section{border:1px solid var(--line);margin-top:14px}.result-section h3{margin:0;padding:13px 16px;border-bottom:1px solid var(--line);font-size:15px;color:var(--navy);background:#fafbfc}
+.result-section{border:1px solid var(--line);border-radius:8px;margin-top:14px;overflow:hidden}.result-section h3,.result-section>summary{margin:0;padding:13px 16px;border-bottom:1px solid var(--line);font-size:15px;font-weight:650;color:var(--navy);background:#fafbfc}.result-section>summary{cursor:pointer;list-style:none;border-bottom:0}.result-section[open]>summary{border-bottom:1px solid var(--line)}.result-section>summary::after{content:"+";float:right;color:var(--blue);font-size:18px}.result-section[open]>summary::after{content:"−"}
 .result-body{padding:14px 16px}.item-list{display:flex;flex-wrap:wrap;gap:8px}.item{border:1px solid var(--line);padding:8px 10px;background:#fff;font-size:13px}
-.source-card{padding:13px 0;border-bottom:1px solid var(--line2)}.source-card:last-child{border-bottom:0}.source-title{font-weight:600;color:#30364b}.source-meta{font-size:12px;color:#667085;margin-top:5px}.source-error{font-size:12px;color:var(--danger);margin-top:5px;overflow-wrap:anywhere}
+.source-card{padding:13px 0;border-bottom:1px solid var(--line2)}.source-card:last-child{border-bottom:0}.source-title{font-weight:600;color:#30364b}.source-meta{font-size:12px;color:#667085;margin-top:5px}.source-error{font-size:12px;color:var(--danger);margin-top:5px;overflow-wrap:anywhere}.source-url{display:block;margin-top:5px;overflow-wrap:anywhere;word-break:break-word}.source-extracted{margin-top:7px;color:#176448;font-size:12px;overflow-wrap:anywhere}
 .tech{margin-top:14px;border:1px solid var(--line)}.tech summary{padding:11px 13px;cursor:pointer;color:#475467;font-size:13px}.tech pre{margin:0;padding:13px;border-top:1px solid var(--line);background:#f8fafc;max-height:300px;overflow:auto;font-size:11px;white-space:pre-wrap;word-break:break-word}
-.side-stack{display:grid;gap:24px}
+.side-stack{display:grid;gap:24px;position:sticky;top:88px}
 .side-note{padding:18px 20px;background:#eef5ff;border:1px solid #cbdcf9;color:#35405f;font-size:14px;line-height:1.5}.side-note strong{color:var(--navy)}
 .batch-status{font-size:13px;color:#5f6678;margin-top:10px;min-height:18px}.download a{display:inline-block;margin-top:10px;color:var(--blue);font-weight:700}
+.history-details>summary{cursor:pointer;list-style:none;padding:16px 20px;color:var(--navy);font-weight:700;display:flex;justify-content:space-between;gap:12px}.history-details>summary::after{content:"+";color:var(--blue);font-size:20px}.history-details[open]>summary::after{content:"−"}.history-list{border-top:1px solid var(--line);max-height:300px;overflow:auto}.history-empty{padding:16px 20px;color:var(--muted);font-size:13px}.history-entry{width:100%;border:0;border-bottom:1px solid var(--line2);background:#fff;text-align:left;padding:12px 20px;cursor:pointer;color:var(--ink)}.history-entry:hover,.history-entry:focus-visible{background:#f5f8ff;outline:none}.history-query{font-weight:650;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.history-meta{font-size:12px;color:var(--muted);margin-top:4px}
+.history-dialog{width:min(680px,calc(100vw - 28px));max-height:82vh;border:1px solid var(--line);border-radius:12px;padding:0;box-shadow:0 24px 70px rgba(16,24,40,.24);color:var(--ink)}.history-dialog::backdrop{background:rgba(16,26,70,.38)}.dialog-head{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--line);padding:16px 18px;display:flex;align-items:center;justify-content:space-between;gap:16px}.dialog-head h2{font-size:17px;color:var(--navy);margin:0}.dialog-close{border:1px solid var(--line);border-radius:7px;background:#fff;min-width:40px;min-height:40px;cursor:pointer;font-size:20px}.dialog-body{padding:18px;overflow:auto}.dialog-query{font-size:18px;font-weight:650;color:var(--navy);overflow-wrap:anywhere}.dialog-meta{font-size:12px;color:var(--muted);margin-top:6px}
 .issue-box{display:none;margin-top:16px;border:1px solid #f1c7c3;background:#fff7f6;padding:14px}.issue-box.show{display:block}.issue-box h3{margin:0 0 8px;color:#8f251d;font-size:14px}.issue-box ul{margin:0;padding-left:18px;font-size:13px;line-height:1.5;color:#69403c}
-@media(max-width:850px){.layout{grid-template-columns:1fr}.side-stack{grid-template-columns:1fr 1fr}.page{padding:26px 18px 48px}.topbar{padding:0 18px}}
+@media(max-width:850px){.layout{grid-template-columns:1fr}.side-stack{grid-template-columns:1fr 1fr;position:static}.page{padding:26px 18px 48px}.topbar{padding:0 18px}}
 @media(max-width:620px){.topbar{height:58px}.brand{font-size:20px}.page{padding:22px 16px 42px}.form-grid,.advanced-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.actions{flex-direction:column}.btn{width:100%}.side-stack{grid-template-columns:1fr}.summary-grid{grid-template-columns:1fr 1fr}.metric:nth-child(2){border-right:0}.metric:nth-child(-n+2){border-bottom:1px solid var(--line)}.trace-row{grid-template-columns:58px 20px 1fr;padding:10px 10px}.status-pill span:last-child{display:none}}
 </style>
 </head>
@@ -107,22 +109,24 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
     <section class="panel" aria-labelledby="search-heading">
       <div class="panel-head"><h2 id="search-heading">Search &amp; Enrich</h2><span id="run-id" class="timer"></span></div>
       <div class="panel-body">
-        <div class="form-grid">
-          <div class="field full"><label for="q">Universal Search</label><input id="q" type="search" inputmode="search" enterkeyhint="search" autocomplete="off" placeholder="Try a company, person and ZIP, phone, email, product, or any topic"></div>
-        </div>
-
-        <details class="advanced">
-          <summary>Advanced Options</summary>
-          <div class="advanced-grid">
-            <div class="field full"><label for="proxy">Optional Proxy URL</label><input id="proxy" type="text" autocomplete="off" placeholder="http:// or socks5://"></div>
+        <form id="search-form" novalidate>
+          <div class="form-grid">
+            <div class="field full"><label for="q">Search anything</label><input id="q" type="search" inputmode="search" enterkeyhint="search" autocomplete="off" placeholder="Company, person + ZIP, phone, email, product, or topic"><p class="field-help">One search box for every query. Press Enter or select Search &amp; Enrich.</p></div>
           </div>
-          <label class="check" for="verify"><input id="verify" type="checkbox" checked> Verify discovered email domains by MX record</label>
-        </details>
 
-        <div class="actions">
-          <button id="search" class="btn primary" type="button">Search &amp; Enrich</button>
-          <button id="clear" class="btn secondary" type="button">Clear</button>
-        </div>
+          <details class="advanced">
+            <summary>Advanced Search Options</summary>
+            <div class="advanced-grid">
+              <div class="field full"><label for="proxy">Optional Proxy URL</label><input id="proxy" type="text" autocomplete="off" placeholder="http:// or socks5://"></div>
+            </div>
+            <label class="check" for="verify"><input id="verify" type="checkbox" checked> Verify discovered email domains by MX record</label>
+          </details>
+
+          <div class="actions">
+            <button id="search" class="btn primary" type="submit">Search &amp; Enrich</button>
+            <button id="clear" class="btn secondary" type="button">Clear</button>
+          </div>
+        </form>
 
         <div id="health" class="health-line" aria-live="polite">Checking backend health…</div>
 
@@ -131,14 +135,8 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
           <div class="state-copy">Enter anything to search. QikReach will determine whether it is a person, business, contact value, or general topic.</div>
         </div>
         <div id="diagnostic" class="diagnostic" aria-live="polite"></div>
-        <section id="live-contacts" class="live-contacts" aria-live="polite" aria-atomic="false">
-          <div class="live-contacts-head">Live contacts found</div>
-          <p class="live-contacts-copy">Contacts appear here immediately when the backend extracts them; the search continues in the background.</p>
-          <div id="live-contacts-list" class="live-contacts-list"></div>
-        </section>
-
         <section class="trace" aria-labelledby="trace-heading">
-          <div class="trace-head"><div id="trace-heading" class="trace-title">Live Search Activity</div><div id="elapsed" class="timer">00:00</div></div>
+          <div class="trace-head"><div id="trace-heading" class="trace-title">Verified Search Activity</div><div id="elapsed" class="timer">00:00</div></div>
           <div id="trace-list" class="trace-list" aria-live="polite">
             <div class="trace-row"><div class="trace-time">--:--</div><div class="trace-icon">○</div><div class="trace-main"><strong>No run yet</strong><div class="trace-detail">Verified search events will appear here.</div></div></div>
           </div>
@@ -166,6 +164,13 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
         </div>
       </section>
 
+      <section class="panel">
+        <details class="history-details">
+          <summary><span>Recent Searches</span><span id="history-count" class="timer">0 saved</span></summary>
+          <div id="history-list" class="history-list"><div class="history-empty">No saved searches yet.</div></div>
+        </details>
+      </section>
+
       <div class="side-note">
         <strong>Live diagnostics</strong><br>
         The activity panel reports only events the browser or backend actually confirms. If a source stalls, blocks automation, rate-limits, times out, or falls back to another retrieval method, the run will identify it.
@@ -173,6 +178,11 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
     </aside>
   </div>
 </main>
+
+<dialog id="history-dialog" class="history-dialog" aria-labelledby="history-dialog-title">
+  <div class="dialog-head"><h2 id="history-dialog-title">Search details</h2><button id="history-close" class="dialog-close" type="button" aria-label="Close search details">×</button></div>
+  <div id="history-detail" class="dialog-body"></div>
+</dialog>
 
 <script>
 'use strict';
@@ -188,6 +198,7 @@ let activeController = null;
 let finalPayload = null;
 let livePhones = new Map();
 let liveEmails = new Map();
+let liveSources = new Map();
 const SearchState = Object.freeze({
   IDLE:'IDLE', VALIDATING:'VALIDATING', CHECKING_BACKEND:'CHECKING_BACKEND', BACKEND_WAKING:'BACKEND_WAKING', CONNECTING:'CONNECTING', SEARCHING:'SEARCHING', DISCOVERING:'DISCOVERING', SCRAPING:'SCRAPING', VERIFYING:'VERIFYING', PROCESSING:'PROCESSING', SUCCESS:'SUCCESS', NO_RESULTS:'NO_RESULTS', NO_CONTACTS:'NO_CONTACTS', PARTIAL_RESULT:'PARTIAL_RESULT', TIMEOUT:'TIMEOUT', BACKEND_OFFLINE:'BACKEND_OFFLINE', NETWORK_ERROR:'NETWORK_ERROR', SERVER_ERROR:'SERVER_ERROR'
 });
@@ -225,7 +236,7 @@ function startClock() {
   watchdogId = setInterval(() => {
     if (!searchActive) return;
     const silentFor = Date.now() - lastEventAt;
-    if (silentFor >= 20000) {
+    if (silentFor >= 12000) {
       setDiagnostic(`No new backend event for ${formatElapsed(silentFor)}. The connection is still open. The current discovery/source operation may be slow, blocked, rate-limited, or waiting for its safety timeout.`);
     }
   }, 2000);
@@ -240,26 +251,122 @@ function resetTrace() {
   $('trace-list').innerHTML = '';
   setDiagnostic('');
 }
-function resetLiveContacts() {
+function resetLiveResults() {
   livePhones = new Map();
   liveEmails = new Map();
-  $('live-contacts-list').replaceChildren();
-  $('live-contacts').className = 'live-contacts';
+  liveSources = new Map();
+  $('results').classList.remove('show');
+  $('summary-grid').replaceChildren();
+  $('result-content').replaceChildren();
+  $('raw-response').textContent = '';
+  $('issue-box').className = 'issue-box';
+  $('issue-box').replaceChildren();
 }
-function addLiveContacts(phones=[], emails=[]) {
+function contactSources(urls=[]) {
+  const unique = [...new Set(urls.filter(Boolean))];
+  if (!unique.length) return '';
+  return `<span class="source-meta">Source: ${unique.map(url => `<a class="source-url" href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(url)}</a>`).join('')}</span>`;
+}
+function externalSearchLinks(query='') {
+  const encoded = encodeURIComponent(query);
+  return [
+    ['Google',`https://www.google.com/search?q=${encoded}`],
+    ['Brave',`https://search.brave.com/search?q=${encoded}`],
+    ['Facebook pages',`https://www.facebook.com/search/pages/?q=${encoded}`]
+  ];
+}
+function renderLiveResults() {
+  const sources = [...liveSources.values()];
+  if (!sources.length && !livePhones.size && !liveEmails.size) return;
+  const processed = sources.filter(source => ['scraped','failed'].includes(source.status)).length;
+  $('results').classList.add('show');
+  $('result-status').textContent = 'SEARCHING — LIVE';
+  $('summary-grid').innerHTML = [
+    ['Discovered',sources.length],
+    ['Processed',processed],
+    ['Phones',livePhones.size],
+    ['Emails',liveEmails.size]
+  ].map(([label,value]) => `<div class="metric"><div class="metric-value">${esc(value)}</div><div class="metric-label">${esc(label)}</div></div>`).join('');
+  const phones = [...livePhones.values()];
+  const emails = [...liveEmails.values()];
+  const phoneHtml = phones.length ? phones.map(phone => `<div class="item">${esc(phone.number)}${phone.extension ? ` ext ${esc(phone.extension)}` : ''}${phone.line_type ? ` · ${esc(phone.line_type)}` : ''}${contactSources(phone.source_urls)}</div>`).join('') : '<span class="item">No phone extracted yet</span>';
+  const emailHtml = emails.length ? emails.map(email => `<div class="item">${esc(email.email)}${contactSources(email.source_urls)}</div>`).join('') : '<span class="item">No email extracted yet</span>';
+  const sourceHtml = sources.map(source => `<div class="source-card"><div class="source-title">${esc(source.title || 'Public source')}</div><a class="source-url" href="${esc(source.url)}" target="_blank" rel="noopener noreferrer">${esc(source.url)}</a><div class="source-meta">${esc(source.provider ? String(source.provider).replaceAll('_',' ') : 'provider pending')} · ${esc(source.status || 'discovered')}</div>${source.error ? `<div class="source-error">${esc(source.error)}</div>` : ''}</div>`).join('');
+  $('result-content').innerHTML = `
+    <section class="result-section"><h3>Phones — live</h3><div class="result-body item-list">${phoneHtml}</div></section>
+    <section class="result-section"><h3>Emails — live</h3><div class="result-body item-list">${emailHtml}</div></section>
+    <details class="result-section"><summary>Sources being checked (${sources.length}) — click to open</summary><div class="result-body">${sourceHtml}</div></details>`;
+}
+function recordLiveSource(event, status) {
+  if (!event.url) return;
+  const current = liveSources.get(event.url) || {url:event.url};
+  liveSources.set(event.url, {
+    ...current,
+    title:event.title || current.title || '',
+    provider:event.provider || current.provider || '',
+    status,
+    error:event.error || ''
+  });
+  renderLiveResults();
+}
+function addLiveContacts(phones=[], emails=[], sourceUrl='') {
   phones.forEach(phone => {
-    if (phone?.number) livePhones.set(`${phone.number}|${phone.extension || ''}`, phone);
+    if (!phone?.number) return;
+    const key = `${phone.number}|${phone.extension || ''}`;
+    const current = livePhones.get(key) || {...phone, source_urls:[]};
+    if (sourceUrl && !current.source_urls.includes(sourceUrl)) current.source_urls.push(sourceUrl);
+    livePhones.set(key,current);
   });
   emails.forEach(email => {
-    if (email) liveEmails.set(String(email).toLowerCase(), String(email).toLowerCase());
+    if (!email) return;
+    const key = String(email).toLowerCase();
+    const current = liveEmails.get(key) || {email:key,source_urls:[]};
+    if (sourceUrl && !current.source_urls.includes(sourceUrl)) current.source_urls.push(sourceUrl);
+    liveEmails.set(key,current);
   });
-  if (!livePhones.size && !liveEmails.size) return;
-  const items = [
-    ...[...livePhones.values()].map(phone => `${phone.number}${phone.extension ? ` ext ${phone.extension}` : ''}${phone.line_type ? ` · ${phone.line_type}` : ''}`),
-    ...[...liveEmails.values()]
-  ];
-  $('live-contacts-list').innerHTML = items.map(item => `<span class="live-contact">${esc(item)}</span>`).join('');
-  $('live-contacts').className = 'live-contacts show';
+  renderLiveResults();
+}
+const HISTORY_KEY = 'qikreach.search-history.v1';
+function readHistory() {
+  try {
+    const value = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+    return Array.isArray(value) ? value : [];
+  } catch { return []; }
+}
+function writeHistory(records) {
+  try { localStorage.setItem(HISTORY_KEY,JSON.stringify(records.slice(0,20))); return true; }
+  catch { return false; }
+}
+function renderHistory() {
+  const records = readHistory();
+  $('history-count').textContent = `${records.length} saved`;
+  $('history-list').innerHTML = records.length ? records.map(record => `<button class="history-entry" type="button" data-history-id="${esc(record.id)}"><div class="history-query">${esc(record.query || 'Untitled search')}</div><div class="history-meta">${esc(new Date(record.saved_at).toLocaleString())} · ${esc(record.status || 'unknown')} · ${(record.phones || []).length} phone(s) · ${(record.emails || []).length} email(s)</div></button>`).join('') : '<div class="history-empty">No saved searches yet.</div>';
+}
+function saveHistory(result) {
+  const record = {
+    id:`${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`,
+    saved_at:new Date().toISOString(),
+    query:String(result?.identity?.query || $('q').value || '').slice(0,2000),
+    status:result?.status || 'unknown',
+    duration_seconds:result?.duration_seconds ?? null,
+    phones:(result?.phones || []).map(phone => ({number:phone.number,extension:phone.extension || '',line_type:phone.line_type || '',region:phone.region || '',source_urls:phone.source_urls || []})),
+    emails:(result?.emails || []).map(email => ({email:email.email,domain_status:email.domain_status || '',source_urls:email.source_urls || []})),
+    sources:(result?.sources || []).slice(0,12).map(source => ({url:source.url,title:source.title || '',status:source.status || '',provider:source.provider || '',method:source.method || '',phones:source.phones || [],emails:source.emails || []}))
+  };
+  const saved = writeHistory([record,...readHistory()]);
+  if (saved) renderHistory();
+  return saved;
+}
+function openHistory(id) {
+  const record = readHistory().find(item => item.id === id);
+  if (!record) return;
+  const phones = (record.phones || []).map(phone => `<div class="item">${esc(phone.number)}${phone.extension ? ` ext ${esc(phone.extension)}` : ''}${phone.line_type ? ` · ${esc(phone.line_type)}` : ''}${contactSources(phone.source_urls)}</div>`).join('') || '<span class="item">No phones extracted</span>';
+  const emails = (record.emails || []).map(email => `<div class="item">${esc(email.email)}${email.domain_status ? ` · ${esc(email.domain_status)}` : ''}${contactSources(email.source_urls)}</div>`).join('') || '<span class="item">No emails extracted</span>';
+  const sources = (record.sources || []).map(source => `<div class="source-card"><div class="source-title">${esc(source.title || 'Public source')}</div><a class="source-url" href="${esc(source.url)}" target="_blank" rel="noopener noreferrer">${esc(source.url)}</a><div class="source-meta">${esc(source.status)}${source.provider ? ` · ${esc(String(source.provider).replaceAll('_',' '))}` : ''}${source.method ? ` · ${esc(source.method)}` : ''}</div></div>`).join('') || '<div class="source-card">No sources saved.</div>';
+  const searchLinks = externalSearchLinks(record.query).map(([label,url]) => `<a class="item" href="${esc(url)}" target="_blank" rel="noopener noreferrer">Open ${esc(label)} search</a>`).join('');
+  $('history-detail').innerHTML = `<div class="dialog-query">${esc(record.query || 'Untitled search')}</div><div class="dialog-meta">${esc(new Date(record.saved_at).toLocaleString())} · ${esc(record.status || 'unknown')}${record.duration_seconds !== null ? ` · ${esc(record.duration_seconds)}s` : ''}</div><section class="result-section"><h3>Phones</h3><div class="result-body item-list">${phones}</div></section><section class="result-section"><h3>Emails</h3><div class="result-body item-list">${emails}</div></section><details class="result-section"><summary>Sources (${(record.sources || []).length}) — click to open</summary><div class="result-body">${sources}</div></details><details class="result-section"><summary>Open this query elsewhere</summary><div class="result-body item-list">${searchLinks}</div></details>`;
+  const dialog = $('history-dialog');
+  if (typeof dialog.showModal === 'function') dialog.showModal(); else dialog.setAttribute('open','');
 }
 function trace(title, detail='', state='active') {
   lastEventAt = Date.now();
@@ -350,20 +457,21 @@ function handleStreamEvent(event) {
     case 'query_started': trace(`Trying ${String(event.provider || 'search provider').replaceAll('_',' ')}`,event.query,'active'); break;
     case 'query_completed': trace(`${String(event.provider || 'Search provider').replaceAll('_',' ')} complete`,`${event.results} unique public result(s) accepted.`,'success'); break;
     case 'query_failed': trace(`${String(event.provider || 'Search provider').replaceAll('_',' ')} failed`,`${event.category || 'error'} • ${event.error}`,'warning'); break;
-    case 'url_discovered': trace(`Source discovered #${event.index}`,`${event.title || 'Untitled'} • ${event.url}`,'success'); break;
+    case 'url_discovered': recordLiveSource(event,'discovered'); trace(`Source discovered #${event.index}`,`${event.title || 'Untitled'} • ${event.url}`,'success'); break;
     case 'discovery_completed': trace('Discovery complete',`${event.discovered} unique public source(s) accepted.`,'success'); break;
     case 'discovery_stopped': trace('Discovery target reached',`${event.reason} Checked ${event.completed}/${event.total} provider(s).`,'success'); break;
-    case 'source_started': transition(SearchState.SCRAPING); trace(`Opening source ${event.index}/${event.total}`,event.url,'active'); break;
+    case 'source_started': transition(SearchState.SCRAPING); recordLiveSource(event,'opening'); trace(`Opening source ${event.index}/${event.total}`,event.url,'active'); break;
     case 'source_completed': {
       const found = `${(event.phones||[]).length} phone(s), ${(event.emails||[]).length} email(s)`;
       const fallback = event.fallback_reason ? ` • fallback after: ${event.fallback_reason}` : '';
       trace(`Source ${event.index}/${event.total} processed`,`${event.method} • relevance ${event.relevance} • identity ${event.identity_match === false ? 'not confirmed' : 'matched'} • ${found} • ${event.duration_seconds}s${fallback}`,'success');
-      addLiveContacts(event.phones || [], event.emails || []);
+      recordLiveSource(event,'scraped');
+      addLiveContacts(event.phones || [], event.emails || [], event.url);
       (event.phones||[]).forEach(p => trace('Phone extracted from source',`${p.number}${p.extension ? ` ext ${p.extension}` : ''}${p.line_type ? ` • ${p.line_type}` : ''} • ${event.url}`,'success'));
       (event.emails||[]).forEach(e => trace('Email extracted from source',`${e} • ${event.url}`,'success'));
       break;
     }
-    case 'source_failed': trace(`Source ${event.index}/${event.total} failed`,`${event.category || classifySourceError(event.error)} • ${event.error} • ${event.url}`,'warning'); break;
+    case 'source_failed': recordLiveSource(event,'failed'); trace(`Source ${event.index}/${event.total} failed`,`${event.category || classifySourceError(event.error)} • ${event.error} • ${event.url}`,'warning'); break;
     case 'extraction_completed': trace('Contact extraction pass complete',`${event.scraped} source(s) scraped • ${event.phones} unique phone(s) • ${event.emails} unique email(s)`,'success'); break;
     case 'verification_started': transition(SearchState.VERIFYING); trace('MX verification started',`${event.emails} email domain(s) to check.`,'active'); break;
     case 'verification_completed': {
@@ -385,7 +493,7 @@ function handleStreamEvent(event) {
 }
 async function streamSearch(searchPayload) {
   activeController = new AbortController();
-  const timeout = setTimeout(() => activeController.abort(), 70000);
+  const timeout = setTimeout(() => activeController.abort(), 45000);
   try {
     transition(SearchState.CONNECTING);
     trace('Streaming request sent','POST /api/search/stream','active');
@@ -465,17 +573,17 @@ function renderResult(result) {
     ['Relevant',result.relevant_count ?? 0],
     ['Duration',`${result.duration_seconds ?? 0}s`]
   ].map(([label,value]) => `<div class="metric"><div class="metric-value">${esc(value)}</div><div class="metric-label">${esc(label)}</div></div>`).join('');
-  const phoneHtml = phones.length ? phones.map(x => `<span class="item">${esc(x.number)}${x.extension ? ` ext ${esc(x.extension)}` : ''}${x.line_type ? ` · ${esc(x.line_type)}` : ''}${x.region ? ` · ${esc(x.region)}` : ''}</span>`).join('') : '<span class="item">No phone numbers extracted</span>';
-  const emailHtml = emails.length ? emails.map(x => `<span class="item">${esc(x.email)} · ${esc(x.domain_status)}</span>`).join('') : '<span class="item">No emails extracted</span>';
+  const phoneHtml = phones.length ? phones.map(x => `<div class="item">${esc(x.number)}${x.extension ? ` ext ${esc(x.extension)}` : ''}${x.line_type ? ` · ${esc(x.line_type)}` : ''}${x.region ? ` · ${esc(x.region)}` : ''}${contactSources(x.source_urls)}</div>`).join('') : '<span class="item">No phone numbers extracted</span>';
+  const emailHtml = emails.length ? emails.map(x => `<div class="item">${esc(x.email)} · ${esc(x.domain_status)}${contactSources(x.source_urls)}</div>`).join('') : '<span class="item">No emails extracted</span>';
   const identity = result.identity || {};
   const identityValues = [['Universal query',identity.query],['Company',identity.fields?.company],['Person / Owner',identity.fields?.person],['Known phone',identity.fields?.phone],['Known email',identity.fields?.email]].filter(([,value]) => value);
   const identityHtml = identityValues.length ? identityValues.map(([label,value]) => `<span class="item"><strong>${esc(label)}:</strong> ${esc(value)}</span>`).join('') : '<span class="item">No identity details returned.</span>';
-  const sourceHtml = sources.length ? sources.map(s => { let sourceDomain = 'Unknown domain'; try { sourceDomain = new URL(s.url).hostname; } catch {} return `<div class="source-card"><div class="source-title">${esc(s.title || 'Untitled source')}</div><div class="source-meta">${esc(sourceDomain)}${s.provider ? ` · ${esc(String(s.provider).replaceAll('_',' '))}` : ''}</div><div><a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.url)}</a></div><div class="source-meta">${esc(s.status)}${s.method ? ` · ${esc(s.method)}` : ''}${s.relevance !== undefined ? ` · relevance ${esc(s.relevance)}` : ''}${s.identity_match === false ? ' · identity not confirmed' : ''}${s.duration_seconds ? ` · ${esc(s.duration_seconds)}s` : ''}</div>${s.fallback_reason ? `<div class="source-meta">Fallback reason: ${esc(s.fallback_reason)}</div>` : ''}${s.error ? `<div class="source-error">${esc(classifySourceError(s.error))}: ${esc(s.error)}</div>` : ''}</div>`; }).join('') : '<div class="source-card">No public sources discovered.</div>';
+  const sourceHtml = sources.length ? sources.map(s => { let sourceDomain = 'Unknown domain'; try { sourceDomain = new URL(s.url).hostname; } catch {} const extracted = [...(s.phones || []).map(phone => `${phone.number}${phone.extension ? ` ext ${phone.extension}` : ''}`),...(s.emails || [])]; return `<div class="source-card"><div class="source-title">${esc(s.title || 'Untitled source')}</div><div class="source-meta">${esc(sourceDomain)}${s.provider ? ` · ${esc(String(s.provider).replaceAll('_',' '))}` : ''}</div><a class="source-url" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.url)}</a><div class="source-meta">${esc(s.status)}${s.method ? ` · ${esc(s.method)}` : ''}${s.relevance !== undefined ? ` · relevance ${esc(s.relevance)}` : ''}${s.identity_match === false ? ' · identity not confirmed' : ''}${s.duration_seconds ? ` · ${esc(s.duration_seconds)}s` : ''}</div>${extracted.length ? `<div class="source-extracted">Extracted here: ${esc(extracted.join(' · '))}</div>` : ''}${s.fallback_reason ? `<div class="source-meta">Fallback reason: ${esc(s.fallback_reason)}</div>` : ''}${s.error ? `<div class="source-error">${esc(classifySourceError(s.error))}: ${esc(s.error)}</div>` : ''}</div>`; }).join('') : '<div class="source-card">No public sources discovered.</div>';
   $('result-content').innerHTML = `
     <section class="result-section"><h3>Search Identity</h3><div class="result-body item-list">${identityHtml}</div></section>
     <section class="result-section"><h3>Phones</h3><div class="result-body item-list">${phoneHtml}</div></section>
     <section class="result-section"><h3>Emails</h3><div class="result-body item-list">${emailHtml}</div></section>
-    <section class="result-section"><h3>Sources</h3><div class="result-body">${sourceHtml}</div></section>
+    <details class="result-section"><summary>Sources (${sources.length}) — click to open</summary><div class="result-body">${sourceHtml}</div></details>
     <section class="result-section"><h3>Search Summary</h3><div class="result-body item-list"><span class="item">Status: ${esc(result.status || 'unknown')}</span><span class="item">Mode: ${esc(result.mode || 'general')}</span><span class="item">Discovered: ${esc(result.discovered_count ?? 0)}</span><span class="item">Scraped: ${esc(result.scraped_count ?? 0)}</span><span class="item">Relevant: ${esc(result.relevant_count ?? 0)}</span><span class="item">Duration: ${esc(result.duration_seconds ?? '—')}s</span><span class="item">Proxy used: ${result.proxy_used ? 'Yes' : 'No'}</span></div></section>`;
   $('raw-response').textContent = JSON.stringify(result,null,2);
   renderIssues(result);
@@ -537,12 +645,9 @@ async function runSearch() {
   finalPayload = null;
   $('search').disabled = true;
   $('search').textContent = 'Searching…';
-  $('results').classList.remove('show');
-  $('result-content').innerHTML = '';
-  $('raw-response').textContent = '';
   $('run-id').textContent = `Run ${Date.now().toString(36).toUpperCase()}`;
   resetTrace();
-  resetLiveContacts();
+  resetLiveResults();
   startClock();
   trace('Search button clicked','User initiated Search & Enrich.','success');
   trace('Frontend validation passed','A universal search query is present.','success');
@@ -556,9 +661,11 @@ async function runSearch() {
     const [title,copy,state] = resultState(result);
     transition(contactsState(result));
     setStatus(title,copy,state);
+    const historySaved = saveHistory(result);
+    trace(historySaved ? 'Search saved locally' : 'Local search history unavailable',historySaved ? 'Open Recent Searches to review the query, contacts, and exact source URLs.' : 'Browser storage is unavailable.',historySaved ? 'success' : 'warning');
   } catch (error) {
     const aborted = error?.name === 'AbortError';
-    const message = aborted ? 'The browser stopped waiting after the 70-second client safety limit.' : (error?.message || 'Unknown search error');
+    const message = aborted ? 'The browser stopped waiting after the 45-second client safety limit.' : (error?.message || 'Unknown search error');
     const status = Number(error?.status || 0);
     const kind = aborted || status === 504 ? SearchState.TIMEOUT : status === 502 || status === 503 ? SearchState.BACKEND_OFFLINE : status >= 500 ? SearchState.SERVER_ERROR : status ? SearchState.SERVER_ERROR : SearchState.NETWORK_ERROR;
     transition(kind);
@@ -574,16 +681,21 @@ async function runSearch() {
     activeController = null;
   }
 }
-$('search').addEventListener('click',runSearch);
-$('q').addEventListener('keydown',event => { if (event.key === 'Enter') { event.preventDefault(); runSearch(); }});
-document.querySelectorAll('input').forEach(input => {
-  if (input.id !== 'file' && input.id !== 'q') input.addEventListener('keydown',event => { if (event.key === 'Enter') { event.preventDefault(); runSearch(); }});
+$('search-form').addEventListener('submit',event => {
+  event.preventDefault();
+  runSearch();
 });
 $('clear').addEventListener('click',() => {
   if (searchActive) return;
   ['q','proxy'].forEach(id => $(id).value='');
   setStatus('Ready','Search fields cleared.','');
 });
+$('history-list').addEventListener('click',event => {
+  const button = event.target.closest('[data-history-id]');
+  if (button) openHistory(button.dataset.historyId);
+});
+$('history-close').addEventListener('click',() => $('history-dialog').close());
+$('history-dialog').addEventListener('click',event => { if (event.target === $('history-dialog')) $('history-dialog').close(); });
 $('file').addEventListener('change',() => {
   const file = $('file').files[0];
   $('batchStatus').textContent = file ? `Selected: ${file.name}` : '';
@@ -625,6 +737,7 @@ $('batch').addEventListener('click', async () => {
   }
 });
 
+renderHistory();
 checkHealth().catch(() => {});
 </script>
 </body>

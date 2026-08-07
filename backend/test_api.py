@@ -8,6 +8,13 @@ class SearchBehaviorTests(unittest.IsolatedAsyncioTestCase):
     def test_short_business_identifier_counts_toward_relevance(self) -> None:
         self.assertGreaterEqual(api.relevance("4T Manufacturing", ["4T Manufacturing LLC"]), 2)
 
+    def test_relevant_search_snippet_can_supply_attributed_contacts(self) -> None:
+        item = {"url": "https://example.com/contact", "title": "Example LLC", "snippet": "Example LLC call 415-555-2671", "provider": "ddgs_brave"}
+        result = api.snippet_result(item, ["Example LLC"], "contact", "HTTP 403", 0.2)
+        self.assertIsNotNone(result)
+        self.assertEqual(result["method"], "search_snippet")
+        self.assertTrue(result["phones"])
+
     def test_universal_query_modes(self) -> None:
         self.assertEqual(api.search_mode(api.SearchRequest(query="potato")), "general")
         self.assertEqual(api.search_mode(api.SearchRequest(query="John Doe from 33139")), "contact")
@@ -45,6 +52,17 @@ class SearchBehaviorTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["mode"], "general")
         self.assertEqual(result["status"], "success")
         self.assertEqual(result["scraped_count"], 1)
+
+    async def test_contacts_include_their_source_urls(self) -> None:
+        discovered = [{"url": "https://example.com/contact", "title": "Example", "snippet": "Example LLC", "provider": "test"}]
+        phone = {"number": "+14155552671", "extension": "", "line_type": "mobile or landline", "region": "US"}
+        scraped = [{**discovered[0], "status": "scraped", "method": "static", "relevance": 5, "identity_match": True, "phones": [phone], "emails": ["sales@example.com"], "duration_seconds": 0.01}]
+        with patch.object(api, "discover", new=AsyncMock(return_value=(discovered, [{"provider": "test", "status": "complete", "results": 1}]))), patch.object(
+            api, "scrape_sources", new=AsyncMock(return_value=scraped)
+        ):
+            result = await api.run_search(api.SearchRequest(query="Example LLC", verify_email_domains=False))
+        self.assertEqual(result["phones"][0]["source_urls"], ["https://example.com/contact"])
+        self.assertEqual(result["emails"][0]["source_urls"], ["https://example.com/contact"])
 
     def test_required_routes_remain_available(self) -> None:
         methods_by_path = {route.path: route.methods for route in api.app.routes if hasattr(route, "methods")}

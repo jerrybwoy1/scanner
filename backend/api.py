@@ -26,13 +26,15 @@ from starlette.background import BackgroundTask
 MAX_URLS = 12
 DISCOVERY_TARGET = 5
 MAX_UPLOAD = 10 * 1024 * 1024
-PROVIDER_TIMEOUT = 12
-STATIC_TIMEOUT = 10
-BROWSER_TIMEOUT = 16
-MAX_BROWSER_FALLBACKS = 2
-SEARCH_TIMEOUT = 60
+PROVIDER_TIMEOUT = 8
+STATIC_TIMEOUT = 6
+BROWSER_TIMEOUT = 8
+SOURCE_BUDGET = 12
+MAX_BROWSER_FALLBACKS = 1
+SEARCH_TIMEOUT = 35
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip() or "gemini-2.5-flash"
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY", "").strip()
 APP_ORIGIN = os.getenv("APP_ORIGIN", "https://scanner.jerrylang.workers.dev").rstrip("/")
 
@@ -51,6 +53,7 @@ ZIP_RE = re.compile(r"(?<!\d)\d{5}(?:-\d{4})?(?!\d)")
 
 PROVIDER_STATE: dict[str, dict[str, Any]] = {
     "gemini_google": {"status": "unknown" if GEMINI_API_KEY else "not_configured"},
+    "groq_web": {"status": "unknown" if GROQ_API_KEY else "not_configured"},
     "tavily": {"status": "unknown" if TAVILY_API_KEY else "not_configured"},
     "ddgs_brave": {"status": "unknown"},
     "ddgs_duckduckgo": {"status": "unknown"},
@@ -76,7 +79,7 @@ class Fields(BaseModel):
 
 
 class SearchRequest(BaseModel):
-    query: str = Field(default="", max_length=300)
+    query: str = Field(default="", max_length=2000)
     fields: Fields = Field(default_factory=Fields)
     proxy: str = Field(default="", max_length=1000)
     verify_email_domains: bool = True
@@ -111,7 +114,7 @@ def clean(value: Any) -> str:
 
 def redact(value: Any) -> str:
     text = clean(value)
-    for secret in (GEMINI_API_KEY, TAVILY_API_KEY):
+    for secret in (GEMINI_API_KEY, GROQ_API_KEY, TAVILY_API_KEY):
         if secret:
             text = text.replace(secret, "[redacted]")
     return re.sub(r"(?i)([?&](?:key|api_key|token)=)[^&\s]+", r"\1[redacted]", text)
@@ -281,6 +284,8 @@ def provider_chain() -> list[tuple[str, Callable[..., Awaitable[list[dict[str, s
     chain: list[tuple[str, Callable[..., Awaitable[list[dict[str, str]]]] | None, str]] = []
     if GEMINI_API_KEY:
         chain.append(("gemini_google", gemini_search, ""))
+    if GROQ_API_KEY:
+        chain.append(("groq_web", groq_search, ""))
     if TAVILY_API_KEY:
         chain.append(("tavily", tavily_search, ""))
     chain.extend((("ddgs_brave", None, "brave"), ("ddgs_duckduckgo", None, "duckduckgo")))
@@ -347,6 +352,39 @@ async def tavily_search(query: str, session: Any, _: str) -> list[dict[str, str]
         for item in data.get("results", [])
         if isinstance(item, dict) and clean(item.get("url"))
     ]
+
+
+async def groq_search(query: str, session: Any, _: str) -> list[dict[str, str]]:
+    body = {
+        "model": "groq/compound-mini",
+        "messages": [{
+            "role": "user",
+            "content": (
+                "Search the public web for this exact query. Return relevant official, contact, business-profile, and public social-page "
+                "sources when appropriate. Use every identity or location clue and do not invent contact details. Query: " + query
+            ),
+        }],
+        "temperature": 0,
+    }
+    headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
+    async with session.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=body) as response:
+        data = await response.json(content_type=None)
+        if response.status >= 400:
+            message = data.get("error", {}).get("message") if isinstance(data, dict) else clean(data)
+            raise RuntimeError(f"Groq HTTP {response.status}: {message or 'request failed'}")
+    choices = data.get("choices") or []
+    message = choices[0].get("message", {}) if choices else {}
+    results: list[dict[str, str]] = []
+    for tool in message.get("executed_tools") or []:
+        for item in tool.get("search_results") or []:
+            if not isinstance(item, dict) or not clean(item.get("url")):
+                continue
+            results.append({
+                "url": clean(item.get("url")),
+                "title": clean(item.get("title")),
+                "snippet": clean(item.get("content")),
+            })
+    return results
 
 
 def ddgs_search(query: str, proxy: str, backend: str) -> list[dict[str, str]]:
@@ -564,6 +602,28 @@ def source_result(item: dict[str, str], html: str, text: str, method: str, terms
     return result
 
 
+def snippet_result(item: dict[str, str], terms: list[str], mode: str, reason: str, duration: float) -> dict[str, Any] | None:
+    if mode != "contact" or item.get("provider") == "gemini_google":
+        return None
+    surface = "\n".join((item.get("title", ""), item.get("snippet", "")))
+    score = relevance(surface, terms)
+    identity_match = identity_constraints_met(surface, terms)
+    phones, emails = extract_contacts(surface) if score >= 2 and identity_match else ([], [])
+    if not phones and not emails:
+        return None
+    return {
+        **item,
+        "status": "snippet_only",
+        "method": "search_snippet",
+        "relevance": score,
+        "identity_match": identity_match,
+        "phones": phones,
+        "emails": emails,
+        "fallback_reason": reason,
+        "duration_seconds": round(duration, 2),
+    }
+
+
 def error_category(message: str) -> str:
     text = message.lower()
     if "429" in text or "rate" in text:
@@ -619,7 +679,13 @@ async def scrape_sources(discovered: list[dict[str, str]], terms: list[str], mod
                     sources[position - 1] = source
                     await emit_source_completed(emit, position, len(discovered), source)
                 except Exception as exc:
-                    pending.append((position, item, redact(exc), started))
+                    message = redact(exc)
+                    snippet = snippet_result(item, terms, mode, message, time.perf_counter() - started)
+                    if snippet:
+                        sources[position - 1] = snippet
+                        await emit_source_completed(emit, position, len(discovered), snippet)
+                    else:
+                        pending.append((position, item, message, started))
 
         await asyncio.gather(*(scrape_static(index, item) for index, item in enumerate(discovered, start=1)))
 
@@ -643,7 +709,13 @@ async def scrape_sources(discovered: list[dict[str, str]], terms: list[str], mod
             async with AsyncWebCrawler(config=BrowserConfig(**browser_args)) as crawler:
                 for position, item, static_error, started in selected:
                     try:
-                        result = await asyncio.wait_for(crawler.arun(url=item["url"], config=run_config), timeout=BROWSER_TIMEOUT)
+                        remaining = SOURCE_BUDGET - (time.perf_counter() - started)
+                        if remaining <= 1:
+                            raise RuntimeError(f"Source exceeded the {SOURCE_BUDGET}-second time budget before browser fallback")
+                        result = await asyncio.wait_for(
+                            crawler.arun(url=item["url"], config=run_config),
+                            timeout=min(BROWSER_TIMEOUT, remaining),
+                        )
                         if not result.success:
                             raise RuntimeError(clean(getattr(result, "error_message", "")) or "Crawler returned no usable page content")
                         html = clean(getattr(result, "html", ""))
@@ -665,6 +737,11 @@ async def scrape_sources(discovered: list[dict[str, str]], terms: list[str], mod
                         await emit_source_completed(emit, position, len(discovered), source)
                     except Exception as exc:
                         message = "; ".join(value for value in (static_error, redact(exc)) if value)
+                        snippet = snippet_result(item, terms, mode, message, time.perf_counter() - started)
+                        if snippet:
+                            sources[position - 1] = snippet
+                            await emit_source_completed(emit, position, len(discovered), snippet)
+                            continue
                         category = error_category(message)
                         sources[position - 1] = {
                             **item,
@@ -687,6 +764,11 @@ async def scrape_sources(discovered: list[dict[str, str]], terms: list[str], mod
             browser_error = redact(exc)
             for position, item, static_error, _ in selected:
                 message = "; ".join(value for value in (static_error, browser_error) if value)
+                snippet = snippet_result(item, terms, mode, message, 0)
+                if snippet:
+                    sources[position - 1] = snippet
+                    await emit_source_completed(emit, position, len(discovered), snippet)
+                    continue
                 category = error_category(message)
                 sources[position - 1] = {
                     **item,
@@ -700,6 +782,11 @@ async def scrape_sources(discovered: list[dict[str, str]], terms: list[str], mod
 
     for position, item, static_error, _ in skipped:
         message = f"{static_error}; browser fallback skipped to keep the search within its time budget"
+        snippet = snippet_result(item, terms, mode, message, 0)
+        if snippet:
+            sources[position - 1] = snippet
+            await emit_source_completed(emit, position, len(discovered), snippet)
+            continue
         category = error_category(message)
         sources[position - 1] = {
             **item,
@@ -754,12 +841,20 @@ async def run_search(request: SearchRequest, emit: Any = None) -> dict[str, Any]
     discovered, query_reports = await discover(subject, proxy, emit)
     sources = await scrape_sources(discovered, terms, mode, proxy, emit) if discovered else []
 
-    phone_map: dict[tuple[str, str], dict[str, str]] = {}
+    phone_map: dict[tuple[str, str], dict[str, Any]] = {}
     email_set: set[str] = set()
+    email_sources: dict[str, list[str]] = {}
     for source in sources:
         for phone in source.get("phones", []):
-            phone_map[(phone["number"], phone["extension"])] = phone
-        email_set.update(source.get("emails", []))
+            key = (phone["number"], phone["extension"])
+            record = phone_map.setdefault(key, {**phone, "source_urls": []})
+            if source["url"] not in record["source_urls"]:
+                record["source_urls"].append(source["url"])
+        for email in source.get("emails", []):
+            email_set.add(email)
+            email_sources.setdefault(email, [])
+            if source["url"] not in email_sources[email]:
+                email_sources[email].append(source["url"])
 
     emails = sorted(email_set)
     scraped_count = sum(1 for source in sources if source["status"] == "scraped")
@@ -771,6 +866,8 @@ async def run_search(request: SearchRequest, emit: Any = None) -> dict[str, Any]
     else:
         email_records = [{"email": value, "domain_status": "not_checked"} for value in emails]
         await emit_progress(emit, "verification_skipped", reason="disabled" if not request.verify_email_domains else "no_emails")
+    for record in email_records:
+        record["source_urls"] = email_sources.get(record["email"], [])
 
     provider_unavailable = not discovered and bool(query_reports) and all(report.get("status") == "error" for report in query_reports)
     if phone_map or emails or (mode == "general" and scraped_count):
@@ -944,7 +1041,7 @@ async def batch(
                     use_ollama=use_ollama,
                 )
                 try:
-                    result = await run_search(request)
+                    result = await asyncio.wait_for(run_search(request), timeout=SEARCH_TIMEOUT)
                     frame.at[index, "Enriched_Phones"] = " | ".join(item["number"] for item in result["phones"]) or "None"
                     frame.at[index, "Enriched_Emails"] = " | ".join(item["email"] for item in result["emails"]) or "None"
                     frame.at[index, "Data_Sources"] = " | ".join(item["url"] for item in result["sources"]) or "None"
