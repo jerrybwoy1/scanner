@@ -146,6 +146,17 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
           </div>
         </section>
 
+        <section class="panel batch-panel">
+          <div class="panel-head"><h2>Spreadsheet Enrichment</h2></div>
+          <div class="panel-body">
+            <label for="file">Select Spreadsheet</label>
+            <input id="file" type="file" accept=".xlsx">
+            <button id="batch" class="btn primary" type="button" style="width:100%;margin-top:12px">Execute Batch Enrichment</button>
+            <div id="batchStatus" class="batch-status" aria-live="polite"></div>
+            <div id="download" class="download"></div>
+          </div>
+        </section>
+
       </div>
     </section>
 
@@ -159,17 +170,6 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
         </section>
 
       <aside class="side-stack">
-      <section class="panel">
-        <div class="panel-head"><h2>Spreadsheet Enrichment</h2></div>
-        <div class="panel-body">
-          <label for="file">Select Spreadsheet</label>
-          <input id="file" type="file" accept=".xlsx">
-          <button id="batch" class="btn primary" type="button" style="width:100%;margin-top:12px">Execute Batch Enrichment</button>
-          <div id="batchStatus" class="batch-status" aria-live="polite"></div>
-          <div id="download" class="download"></div>
-        </div>
-      </section>
-
       <section class="panel">
         <details class="history-details">
           <summary><span>Recent Searches</span><span id="history-count" class="timer">0 saved</span></summary>
@@ -313,7 +313,7 @@ function renderLiveResults() {
   const emails = [...liveEmails.values()];
   const phoneHtml = phones.length ? phones.map(phone => `<div class="item">${esc(phone.number)}${phone.extension ? ` ext ${esc(phone.extension)}` : ''}${phone.line_type ? ` · ${esc(phone.line_type)}` : ''}${contactSources(phone.source_urls)}</div>`).join('') : '<span class="item">No phone extracted yet</span>';
   const emailHtml = emails.length ? emails.map(email => `<div class="item">${esc(email.email)}${contactSources(email.source_urls)}</div>`).join('') : '<span class="item">No email extracted yet</span>';
-  const sourceHtml = sources.map(source => `<div class="source-card"><div class="source-title">${esc(source.title || 'Public source')}</div><a class="source-url" href="${esc(source.url)}" title="${esc(source.url)}" target="_blank" rel="noopener noreferrer">Open ${esc(sourceDomain(source.url))}</a>${sourceSnippet(source)}<div class="source-meta">${esc(source.provider ? String(source.provider).replaceAll('_',' ') : 'provider pending')} · ${esc(source.status || 'discovered')}</div>${source.error ? `<div class="source-error">${esc(source.error)}</div>` : ''}</div>`).join('');
+  const sourceHtml = sources.map(source => `<div class="source-card"><div class="source-title">${esc(source.title || 'Public source')}</div><a class="source-url" href="${esc(source.url)}" title="${esc(source.url)}" target="_blank" rel="noopener noreferrer">${esc(sourceDomain(source.url))}</a>${sourceSnippet(source)}<div class="source-meta">${esc(source.provider ? String(source.provider).replaceAll('_',' ') : 'provider pending')} · ${esc(source.status || 'discovered')}</div>${source.error ? `<div class="source-error">${esc(source.error)}</div>` : ''}</div>`).join('');
   $('result-content').innerHTML = `
     ${businessDetailsHtml(sources.map(source => ({...source.details, source_url:source.url, source_title:source.title})).filter(source => source.details))}
     <section class="result-section"><h3>Phones — live</h3><div class="result-body item-list">${phoneHtml}</div></section>
@@ -388,7 +388,7 @@ function openHistory(id) {
   if (!record) return;
   const phones = (record.phones || []).map(phone => `<div class="item">${esc(phone.number)}${phone.extension ? ` ext ${esc(phone.extension)}` : ''}${phone.line_type ? ` · ${esc(phone.line_type)}` : ''}${contactSources(phone.source_urls)}</div>`).join('') || '<span class="item">No phones extracted</span>';
   const emails = (record.emails || []).map(email => `<div class="item">${esc(email.email)}${email.domain_status ? ` · ${esc(email.domain_status)}` : ''}${contactSources(email.source_urls)}</div>`).join('') || '<span class="item">No emails extracted</span>';
-  const sources = (record.sources || []).map(source => `<div class="source-card"><div class="source-title">${esc(source.title || 'Public source')}</div><a class="source-url" href="${esc(source.url)}" title="${esc(source.url)}" target="_blank" rel="noopener noreferrer">Open ${esc(sourceDomain(source.url))}</a>${sourceSnippet(source)}<div class="source-meta">${esc(source.status)}${source.provider ? ` · ${esc(String(source.provider).replaceAll('_',' '))}` : ''}${source.method ? ` · ${esc(source.method)}` : ''}</div></div>`).join('') || '<div class="source-card">No sources saved.</div>';
+  const sources = (record.sources || []).map(source => `<div class="source-card"><div class="source-title">${esc(source.title || 'Public source')}</div><a class="source-url" href="${esc(source.url)}" title="${esc(source.url)}" target="_blank" rel="noopener noreferrer">${esc(sourceDomain(source.url))}</a>${sourceSnippet(source)}<div class="source-meta">${esc(source.status)}${source.provider ? ` · ${esc(String(source.provider).replaceAll('_',' '))}` : ''}${source.method ? ` · ${esc(source.method)}` : ''}</div></div>`).join('') || '<div class="source-card">No sources saved.</div>';
   const searchLinks = externalSearchLinks(record.query).map(([label,url]) => `<a class="item" href="${esc(url)}" target="_blank" rel="noopener noreferrer">Open ${esc(label)} search</a>`).join('');
   $('history-detail').innerHTML = `<div class="dialog-query">${esc(record.query || 'Untitled search')}</div><div class="dialog-meta">${esc(new Date(record.saved_at).toLocaleString())} · ${esc(record.status || 'unknown')}${record.duration_seconds !== null ? ` · ${esc(record.duration_seconds)}s` : ''}</div>${businessDetailsHtml(record.business_details || [])}<section class="result-section"><h3>Phones</h3><div class="result-body item-list">${phones}</div></section><section class="result-section"><h3>Emails</h3><div class="result-body item-list">${emails}</div></section><details class="result-section"><summary>Sources (${(record.sources || []).length}) — click to open</summary><div class="result-body">${sources}</div></details><details class="result-section"><summary>Open this query elsewhere</summary><div class="result-body item-list">${searchLinks}</div></details>`;
   const dialog = $('history-dialog');
@@ -605,7 +605,7 @@ function renderResult(result) {
   const identity = result.identity || {};
   const identityValues = [['Universal query',identity.query],['Company',identity.fields?.company],['Person / Owner',identity.fields?.person],['Known phone',identity.fields?.phone],['Known email',identity.fields?.email]].filter(([,value]) => value);
   const identityHtml = identityValues.length ? identityValues.map(([label,value]) => `<span class="item"><strong>${esc(label)}:</strong> ${esc(value)}</span>`).join('') : '<span class="item">No identity details returned.</span>';
-  const sourceHtml = sources.length ? sources.map(s => { const extracted = [...(s.phones || []).map(phone => `${phone.number}${phone.extension ? ` ext ${phone.extension}` : ''}`),...(s.emails || [])]; return `<div class="source-card"><div class="source-title">${esc(s.title || 'Untitled source')}</div><div class="source-meta">${esc(sourceDomain(s.url))}${s.provider ? ` · ${esc(String(s.provider).replaceAll('_',' '))}` : ''}</div><a class="source-url" href="${esc(s.url)}" title="${esc(s.url)}" target="_blank" rel="noopener noreferrer">Open ${esc(sourceDomain(s.url))}</a>${sourceSnippet(s)}<div class="source-meta">${esc(s.status)}${s.method ? ` · ${esc(s.method)}` : ''}${s.relevance !== undefined ? ` · relevance ${esc(s.relevance)}` : ''}${s.identity_match === false ? ' · identity not confirmed' : ''}${s.duration_seconds ? ` · ${esc(s.duration_seconds)}s` : ''}</div>${extracted.length ? `<div class="source-extracted">Extracted here: ${esc(extracted.join(' · '))}</div>` : ''}${s.fallback_reason ? `<div class="source-meta">Fallback reason: ${esc(s.fallback_reason)}</div>` : ''}${s.error ? `<div class="source-error">${esc(classifySourceError(s.error))}: ${esc(s.error)}</div>` : ''}</div>`; }).join('') : '<div class="source-card">No public sources discovered.</div>';
+  const sourceHtml = sources.length ? sources.map(s => { const extracted = [...(s.phones || []).map(phone => `${phone.number}${phone.extension ? ` ext ${phone.extension}` : ''}`),...(s.emails || [])]; return `<div class="source-card"><div class="source-title">${esc(s.title || 'Untitled source')}</div><div class="source-meta">${esc(sourceDomain(s.url))}${s.provider ? ` · ${esc(String(s.provider).replaceAll('_',' '))}` : ''}</div><a class="source-url" href="${esc(s.url)}" title="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(sourceDomain(s.url))}</a>${sourceSnippet(s)}<div class="source-meta">${esc(s.status)}${s.method ? ` · ${esc(s.method)}` : ''}${s.relevance !== undefined ? ` · relevance ${esc(s.relevance)}` : ''}${s.identity_match === false ? ' · identity not confirmed' : ''}${s.duration_seconds ? ` · ${esc(s.duration_seconds)}s` : ''}</div>${extracted.length ? `<div class="source-extracted">Extracted here: ${esc(extracted.join(' · '))}</div>` : ''}${s.fallback_reason ? `<div class="source-meta">Fallback reason: ${esc(s.fallback_reason)}</div>` : ''}${s.error ? `<div class="source-error">${esc(classifySourceError(s.error))}: ${esc(s.error)}</div>` : ''}</div>`; }).join('') : '<div class="source-card">No public sources discovered.</div>';
   $('result-content').innerHTML = `
     ${businessDetailsHtml(result.business_details || [])}
     <section class="result-section"><h3>Search Identity</h3><div class="result-body item-list">${identityHtml}</div></section>
