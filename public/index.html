@@ -59,13 +59,13 @@ details.advanced summary{cursor:pointer;color:var(--navy);font-weight:500;paddin
 details.advanced summary::after{content:"+";float:right;color:var(--blue);font-size:20px}details[open].advanced summary::after{content:"−"}
 .advanced-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:6px 0 4px}
 .check{display:flex;align-items:center;gap:9px;margin-top:14px;color:#475467;font-size:14px}.check input{width:17px;height:17px}
-.health-line{display:flex;align-items:center;gap:8px;padding:12px 14px;background:var(--soft);border:1px solid var(--line2);margin-top:18px;font-size:13px;color:#475467}
-.search-state{display:none;margin-top:16px;border:1px solid var(--line);border-radius:8px;padding:15px 16px;background:#fff}
+  .health-line{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--soft);border:1px solid var(--line2);margin-top:14px;font-size:12px;color:#667085;min-height:34px}
+  .search-state{display:none;margin-top:12px;border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:#fff}
 .search-state.working{border-left:4px solid var(--blue);background:var(--softblue)}
 .search-state.success{border-left:4px solid var(--success)}
 .search-state.warning{border-left:4px solid #e0a100;background:#fffaf0}
 .search-state.error{border-left:4px solid var(--danger);background:#fff6f5}
-.state-title{font-size:15px;font-weight:500;color:var(--navy)}.state-copy{font-size:14px;color:#5b6174;margin-top:4px;line-height:1.45}
+  .state-title{font-size:13px;font-weight:500;color:var(--navy)}.state-copy{font-size:12px;color:#667085;margin-top:3px;line-height:1.4}
 .diagnostic{margin-top:8px;padding:7px 9px;background:#fffaf0;border:1px solid #f0d58a;color:#6b5200;font-size:12px;line-height:1.35;display:none}
 .diagnostic.show{display:block}
 .trace{margin-top:18px;border:1px solid var(--line);border-radius:8px;background:#fff;overflow:hidden}
@@ -81,7 +81,7 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
 .summary-grid{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);margin-bottom:18px}
 .metric{padding:9px 10px;border-right:1px solid var(--line)}.metric:last-child{border-right:0}.metric-value{font-size:18px;font-weight:400;color:var(--navy);line-height:1.2}.metric-label{font-size:11px;color:var(--muted);margin-top:3px;font-weight:400}
 .result-section{border:1px solid var(--line);border-radius:8px;margin-top:14px;overflow:hidden}.result-section h3,.result-section>summary{margin:0;padding:13px 16px;border-bottom:1px solid var(--line);font-size:15px;font-weight:500;color:var(--navy);background:#fafbfc}.result-section>summary{cursor:pointer;list-style:none;border-bottom:0}.result-section[open]>summary{border-bottom:1px solid var(--line)}.result-section>summary::after{content:"+";float:right;color:var(--blue);font-size:18px}.result-section[open]>summary::after{content:"−"}
-.result-body{padding:14px 16px}.item-list{display:flex;flex-wrap:wrap;gap:8px}.item{border:1px solid var(--line);padding:8px 10px;background:#fff;font-size:13px}
+  .result-body{padding:14px 16px;max-height:230px;overflow:auto;scrollbar-gutter:stable}.result-section>.item-list{max-height:170px;align-content:flex-start}.item-list{display:flex;flex-wrap:wrap;gap:8px}.item{border:1px solid var(--line);padding:8px 10px;background:#fff;font-size:13px}.source-scroll{max-height:260px}
 .result-more{width:100%;border:1px solid var(--line2);border-radius:7px;background:#fafbfc}.result-more summary{padding:9px 10px;cursor:pointer;color:var(--blue);font-size:12px;list-style:none}.result-more summary::after{content:"+";float:right}.result-more[open] summary::after{content:"−"}.result-more .item-list{padding:0 10px 10px}
 .source-card{padding:13px 0;border-bottom:1px solid var(--line2)}.source-card:last-child{border-bottom:0}.source-title{font-weight:500;color:#30364b;font-size:14px}.source-meta{font-size:13px;color:#667085;margin-top:5px}.source-error{font-size:13px;color:var(--danger);margin-top:5px;overflow-wrap:anywhere}.source-url{display:block;margin-top:5px;overflow-wrap:anywhere;word-break:break-word;font-size:13px}.source-extracted{margin-top:7px;color:#176448;font-size:13px;overflow-wrap:anywhere}.source-snippet{margin-top:8px;color:#475467;font-size:14px;line-height:1.45;overflow-wrap:anywhere}.contact-source{display:block;margin-top:6px;color:#667085;font-size:13px;line-height:1.35;overflow-wrap:anywhere}.contact-source a{display:inline;color:var(--blue);font-weight:500}.detail-card{border:1px solid var(--line);padding:11px 12px;background:#fff;min-width:min(100%,320px);flex:1 1 320px}.detail-label{font-size:13px;color:var(--muted);font-weight:500;text-transform:uppercase;letter-spacing:.04em}.detail-value{font-size:14px;color:#30364b;margin-top:4px;line-height:1.45;overflow-wrap:anywhere}.detail-source{font-size:13px;color:var(--muted);margin-top:7px}
 .tech{margin-top:14px;border:1px solid var(--line)}.tech summary{padding:11px 13px;cursor:pointer;color:#475467;font-size:13px}.tech pre{margin:0;padding:13px;border-top:1px solid var(--line);background:#f8fafc;max-height:300px;overflow:auto;font-size:11px;white-space:pre-wrap;word-break:break-word}
@@ -91,7 +91,7 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
 .batch-progress{display:none;align-items:center;gap:9px;margin-top:12px}.batch-progress.show{display:flex}.batch-progress-track{height:6px;flex:1;border-radius:99px;background:#e8ebf0;overflow:hidden}.batch-progress-bar{height:100%;width:38%;border-radius:99px;background:var(--blue);animation:batch-slide 1.15s ease-in-out infinite}.batch-progress.complete .batch-progress-bar{width:100%;animation:none;background:var(--success)}.batch-progress.error .batch-progress-bar{width:100%;animation:none;background:var(--danger)}.batch-elapsed{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}@keyframes batch-slide{0%{transform:translateX(-120%)}100%{transform:translateX(280%)}}
 .history-details{min-height:350px}.history-details>summary{cursor:pointer;list-style:none;padding:13px 16px;color:var(--navy);font-weight:400;display:flex;justify-content:space-between;gap:12px}.history-details>summary::after{content:"+";color:var(--blue);font-size:20px}.history-details[open]>summary::after{content:"−"}.history-list{border-top:1px solid var(--line);height:292px;max-height:292px;overflow:auto}.history-empty{padding:16px;color:var(--muted);font-size:13px}.history-entry{width:100%;border:0;border-bottom:1px solid var(--line2);background:#fff;text-align:left;padding:9px 16px;cursor:pointer;color:var(--ink)}.history-entry:hover,.history-entry:focus-visible{background:#f5f8ff;outline:none}.history-query{font-weight:400;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px}.history-meta{font-size:11px;color:var(--muted);margin-top:3px;font-weight:400}
 .history-dialog{width:min(680px,calc(100vw - 28px));max-height:82vh;border:1px solid var(--line);border-radius:12px;padding:0;box-shadow:0 24px 70px rgba(16,24,40,.24);color:var(--ink)}.history-dialog::backdrop{background:rgba(16,26,70,.38)}.dialog-head{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--line);padding:16px 18px;display:flex;align-items:center;justify-content:space-between;gap:16px}.dialog-head h2{font-size:17px;color:var(--navy);margin:0}.dialog-close{border:1px solid var(--line);border-radius:7px;background:#fff;min-width:40px;min-height:40px;cursor:pointer;font-size:20px}.dialog-body{padding:18px;overflow:auto}.dialog-query{font-size:18px;font-weight:650;color:var(--navy);overflow-wrap:anywhere}.dialog-meta{font-size:12px;color:var(--muted);margin-top:6px}
-.issue-box{display:none;margin-top:12px;border:1px solid #f1c7c3;background:#fff7f6;padding:9px 10px}.issue-box.show{display:block}.issue-box h3{margin:0 0 6px;color:#8f251d;font-size:13px}.issue-box ul{margin:0;padding-left:17px;font-size:12px;line-height:1.4;color:#69403c}
+  .issue-box{display:none;margin-top:10px;border:1px solid #f1c7c3;background:#fff7f6;padding:7px 9px}.issue-box.show{display:block;max-height:120px;overflow:auto}.issue-box h3{margin:0 0 4px;color:#8f251d;font-size:12px;font-weight:500}.issue-box ul{margin:0;padding-left:15px;font-size:11px;line-height:1.35;color:#69403c}
 @media(max-width:850px){.layout{grid-template-columns:1fr}.left-column,.result-column{display:contents}.side-stack{grid-template-columns:1fr 1fr;position:static}.page{padding:22px 18px 48px}.hero{display:block}.subtitle{text-align:left;margin-top:5px}.topbar{padding:0 18px}}
 @media(max-width:620px){.topbar{height:58px}.brand{font-size:20px}.page{padding:22px 16px 42px}.form-grid,.advanced-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.actions{flex-direction:column}.btn{width:100%}.side-stack{grid-template-columns:1fr}.summary-grid{grid-template-columns:1fr 1fr}.metric:nth-child(2){border-right:0}.metric:nth-child(-n+2){border-bottom:1px solid var(--line)}.trace-row{grid-template-columns:58px 20px 1fr;padding:10px 10px}}
 </style>
@@ -120,7 +120,7 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
           <details class="advanced">
             <summary>Advanced Search Options</summary>
             <div class="advanced-grid">
-              <div class="field full"><label for="proxy">Optional Proxy URL</label><input id="proxy" type="text" autocomplete="off" placeholder="http:// or socks5://"></div>
+              <div class="field full"><label for="proxy">Proxy URL (optional)</label><input id="proxy" type="text" autocomplete="off" placeholder="Leave blank unless you have a proxy"><p class="field-help">A proxy is an address supplied by a proxy provider that routes requests through another server. You do not need one for normal searches.</p></div>
             </div>
             <label class="check" for="verify"><input id="verify" type="checkbox" checked> Verify discovered email domains by MX record</label>
             <label class="check" for="deep-search"><input id="deep-search" type="checkbox" checked> Deep Search (default): check more public sources and allow a longer run</label>
@@ -132,7 +132,7 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
           </div>
         </form>
 
-        <div id="health" class="health-line" aria-live="polite">Search service checking…</div>
+        <div id="health" class="health-line" aria-live="polite">Checking…</div>
 
         <div id="status" class="search-state" role="status" aria-live="polite"></div>
         <div id="diagnostic" class="diagnostic" aria-live="polite"></div>
@@ -143,7 +143,7 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
           </div>
         </section>
         <details class="advanced-diagnostics">
-          <summary>Advanced diagnostics &amp; source audit</summary>
+          <summary>Run details &amp; source audit</summary>
           <div class="diagnostic-grid" aria-live="polite">
             <div class="diagnostic-cell"><div class="diagnostic-label">State</div><div id="diag-state" class="diagnostic-value">IDLE</div></div>
             <div class="diagnostic-cell"><div class="diagnostic-label">Last stage</div><div id="diag-stage" class="diagnostic-value">Waiting</div></div>
@@ -382,7 +382,7 @@ function renderLiveResults() {
     ${businessDetailsHtml(sources.map(source => ({...source.details, source_url:source.url, source_title:source.title})).filter(source => source.details))}
     <section class="result-section"><h3>Phones — live</h3><div class="result-body item-list">${phoneHtml}</div></section>
     <section class="result-section"><h3>Emails — live</h3><div class="result-body item-list">${emailHtml}</div></section>
-    <details class="result-section"><summary>Sources being checked (${sources.length}) — click to open</summary><div class="result-body">${sourceHtml}</div></details>`;
+    <details class="result-section"><summary>Sources being checked (${sources.length}) — click to open</summary><div class="result-body source-scroll">${sourceHtml}</div></details>`;
 }
 function recordLiveSource(event, status) {
   if (!event.url) return;
@@ -541,7 +541,7 @@ async function checkHealth({retries=0, traceEvents=false}={}) {
       if (!response.ok || !data.ok) { const error = new Error(data.detail || data.error || `Health HTTP ${response.status}`); error.status = response.status; throw error; }
       if (!data.search_ready) { const error = new Error('Search providers are temporarily unavailable.'); error.status = 503; throw error; }
       const provider = data.primary_provider ? String(data.primary_provider).replaceAll('_',' ') : 'unconfigured';
-      $('health').textContent = `Search service ready • ${provider} • Crawler ${data.browser_crawler_ready ? 'ready' : 'fallback only'} • Batch ${data.batch_ready ? 'ready' : 'unavailable'}`;
+      $('health').textContent = 'Ready';
       if (traceEvents) trace('Search service ready', `HTTP ${response.status} • primary provider ${provider} • browser crawler ${data.browser_crawler_ready ? 'ready' : 'fallback only'}`, 'success');
       return data;
     } catch (error) {
@@ -584,7 +584,7 @@ function handleStreamEvent(event) {
     case 'url_filtered': trace('Irrelevant source skipped',`${event.title || 'Untitled'} • ${event.reason || 'not relevant'} • ${sourceDomain(event.url)}`,'warning'); break;
     case 'discovery_completed': trace('Discovery complete',`${event.discovered} unique public source(s) accepted.`,'success'); break;
     case 'discovery_stopped': trace('Discovery target reached',`${event.reason} Checked ${event.completed}/${event.total} provider(s).`,'success'); break;
-    case 'source_started': transition(SearchState.SCRAPING); recordLiveSource(event,'opening'); trace(`Opening source ${event.index}/${event.total}`,`Checking ${sourceDomain(event.url)} for business name, address, owner, phones, emails, and page context.`,'active'); break;
+    case 'source_started': transition(SearchState.SCRAPING); recordLiveSource(event,'opening'); trace(`Opening source ${event.index}/${event.total}`,`Checking ${sourceDomain(event.url)} for relevant text and contact details.`,'active'); break;
     case 'source_completed': {
       const found = `${(event.phones||[]).length} phone(s), ${(event.emails||[]).length} email(s)`;
       const fallback = event.fallback_reason ? ` • fallback after: ${event.fallback_reason}` : '';
@@ -710,7 +710,7 @@ function renderResult(result) {
     <section class="result-section"><h3>Phones</h3><div class="result-body item-list">${phoneHtml}</div></section>
     <section class="result-section"><h3>Emails</h3><div class="result-body item-list">${emailHtml}</div></section>
     <details class="result-section"><summary>Search identity</summary><div class="result-body item-list">${identityHtml}</div></details>
-    <details class="result-section"><summary>Sources (${sources.length}) — click to open</summary><div class="result-body">${sourceHtml}</div></details>
+    <details class="result-section"><summary>Sources (${sources.length}) — click to open</summary><div class="result-body source-scroll">${sourceHtml}</div></details>
     <section class="result-section"><h3>Search Summary</h3><div class="result-body item-list"><span class="item">Status: ${esc(result.status || 'unknown')}</span><span class="item">Mode: ${esc(result.mode || 'general')}</span><span class="item">Discovered: ${esc(result.discovered_count ?? 0)}</span><span class="item">Scraped: ${esc(result.scraped_count ?? 0)}</span><span class="item">Relevant: ${esc(result.relevant_count ?? 0)}</span><span class="item">Duration: ${esc(result.duration_seconds ?? '—')}s</span><span class="item">Proxy used: ${result.proxy_used ? 'Yes' : 'No'}</span></div></section>`;
   $('raw-response').textContent = JSON.stringify(result,null,2);
   renderIssues(result);
