@@ -68,6 +68,8 @@ class SearchBehaviorTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(source["details"]["address"], "984 W Corporate Ln, Nampa, ID 83651-1743")
         self.assertIn("custom home building", source["details"]["business_type"])
         self.assertEqual(source["details"]["owner"], "Jane Doe")
+        phone_index = {**item, "url": "https://thephoneindex.com/prefix-718-382"}
+        self.assertEqual(api.filter_source_emails(["me@thephoneindex.com"], phone_index, ["Example Homes LLC"]), [])
 
     def test_business_phrase_does_not_match_number_inside_unrelated_address(self) -> None:
         item = {

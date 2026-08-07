@@ -57,6 +57,7 @@ ADDRESS_RE = re.compile(
 DIRECTORY_DOMAINS = {
     "mapquest.com", "whitepages.com", "yelp.com", "yellowpages.com", "superpages.com",
     "bizprofile.net", "openigloo.com", "buzzfile.com", "company-detail.com", "truepeoplesearch.com",
+    "telephonedirectories.us", "thephoneindex.com", "areacodelocator.net", "tfrecipes.com", "local.us-info.com", "numlookup.com",
 }
 GENERIC_MAILBOXES = {"help", "support", "contact", "info", "sales", "privacy", "admin", "noreply", "no-reply", "webmaster"}
 NAME_STOPWORDS = {"from", "near", "in", "at", "on", "around", "zip", "zipcode", "county", "state", "phone", "email", "address"}
@@ -547,7 +548,7 @@ async def discover(subject: str, proxy: str, emit: Any = None) -> tuple[list[dic
                         query=subject,
                         provider=name,
                     )
-                    if len(urls) >= MAX_URLS:
+                    if len(urls) >= DISCOVERY_TARGET or len(urls) >= MAX_URLS:
                         break
                 reports.append({"query": subject, "provider": name, "status": "complete", "results": accepted})
                 await emit_progress(
