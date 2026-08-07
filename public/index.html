@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600&display=swap" rel="stylesheet">
 <style>
 :root{
   color-scheme:light;
@@ -33,12 +34,10 @@ a{color:var(--blue);text-underline-offset:2px}
 .topbar{height:54px;border-bottom:1px solid #dfe3eb;box-shadow:0 1px 5px rgba(16,24,40,.05);display:flex;align-items:center;justify-content:space-between;padding:0 max(20px,calc((100vw - 1180px)/2));position:sticky;top:0;background:rgba(255,255,255,.96);z-index:20}
 .brand{display:flex;align-items:center;gap:8px;color:var(--navy);font-size:18px;font-weight:500;letter-spacing:-.25px}
 .brand-mark{width:30px;height:30px;border-radius:8px;background:var(--navy);display:grid;place-items:center;font-size:14px;color:#fff;font-weight:800;box-shadow:0 3px 9px rgba(16,26,70,.18)}
-.status-pill{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:999px;padding:8px 12px;font-size:13px;color:var(--muted);background:#fff}
-.status-dot{width:8px;height:8px;border-radius:50%;background:#98a2b3}.status-pill.online .status-dot{background:var(--success)}.status-pill.waking .status-dot{background:#f0b429}.status-pill.offline .status-dot{background:var(--danger)}
 .page{max-width:1180px;margin:0 auto;padding:14px 24px 50px}
 .breadcrumb,.eyebrow{display:none}
 .hero{border-bottom:1px solid var(--line);padding:0 0 12px;margin-bottom:16px;display:flex;align-items:baseline;justify-content:space-between;gap:18px}
-h1{margin:0;color:var(--navy);font-weight:400;font-size:clamp(19px,2vw,24px);letter-spacing:-.25px;white-space:nowrap}
+h1{margin:0;color:var(--navy);font-family:"Manrope","Noto Sans Bengali",sans-serif;font-weight:600;font-size:clamp(19px,2vw,24px);letter-spacing:-.3px;white-space:nowrap}
 .subtitle{font-size:12px;color:#68717d;line-height:1.4;margin:0;max-width:560px;text-align:right}
 .layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;align-items:start}
 .left-column,.result-column{display:grid;gap:24px;min-width:0}.results.panel{margin-top:0}.result-column>.side-stack{position:static;top:auto}
@@ -79,32 +78,30 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
 .trace-main{min-width:0}.trace-main strong{font-weight:500;color:#30364b}.trace-detail{color:#667085;margin-top:3px;overflow-wrap:anywhere}
 .results{margin-top:24px;display:none}.results.show{display:block}
 .summary-grid{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);margin-bottom:18px}
-.metric{padding:9px 10px;border-right:1px solid var(--line)}.metric:last-child{border-right:0}.metric-value{font-size:18px;color:var(--navy);line-height:1.2}.metric-label{font-size:11px;color:var(--muted);margin-top:3px}
+.metric{padding:9px 10px;border-right:1px solid var(--line)}.metric:last-child{border-right:0}.metric-value{font-size:18px;font-weight:400;color:var(--navy);line-height:1.2}.metric-label{font-size:11px;color:var(--muted);margin-top:3px;font-weight:400}
 .result-section{border:1px solid var(--line);border-radius:8px;margin-top:14px;overflow:hidden}.result-section h3,.result-section>summary{margin:0;padding:13px 16px;border-bottom:1px solid var(--line);font-size:15px;font-weight:500;color:var(--navy);background:#fafbfc}.result-section>summary{cursor:pointer;list-style:none;border-bottom:0}.result-section[open]>summary{border-bottom:1px solid var(--line)}.result-section>summary::after{content:"+";float:right;color:var(--blue);font-size:18px}.result-section[open]>summary::after{content:"−"}
 .result-body{padding:14px 16px}.item-list{display:flex;flex-wrap:wrap;gap:8px}.item{border:1px solid var(--line);padding:8px 10px;background:#fff;font-size:13px}
 .result-more{width:100%;border:1px solid var(--line2);border-radius:7px;background:#fafbfc}.result-more summary{padding:9px 10px;cursor:pointer;color:var(--blue);font-size:12px;list-style:none}.result-more summary::after{content:"+";float:right}.result-more[open] summary::after{content:"−"}.result-more .item-list{padding:0 10px 10px}
 .source-card{padding:13px 0;border-bottom:1px solid var(--line2)}.source-card:last-child{border-bottom:0}.source-title{font-weight:500;color:#30364b}.source-meta{font-size:12px;color:#667085;margin-top:5px}.source-error{font-size:12px;color:var(--danger);margin-top:5px;overflow-wrap:anywhere}.source-url{display:block;margin-top:5px;overflow-wrap:anywhere;word-break:break-word}.source-extracted{margin-top:7px;color:#176448;font-size:12px;overflow-wrap:anywhere}.source-snippet{margin-top:8px;color:#475467;font-size:13px;line-height:1.45;overflow-wrap:anywhere}.contact-source{display:block;margin-top:6px;color:#667085;font-size:12px;line-height:1.35;overflow-wrap:anywhere}.contact-source a{display:inline;color:var(--blue);font-weight:500}.detail-card{border:1px solid var(--line);padding:11px 12px;background:#fff;min-width:min(100%,320px);flex:1 1 320px}.detail-label{font-size:12px;color:var(--muted);font-weight:500;text-transform:uppercase;letter-spacing:.04em}.detail-value{font-size:13px;color:#30364b;margin-top:4px;line-height:1.45;overflow-wrap:anywhere}.detail-source{font-size:12px;color:var(--muted);margin-top:7px}
 .tech{margin-top:14px;border:1px solid var(--line)}.tech summary{padding:11px 13px;cursor:pointer;color:#475467;font-size:13px}.tech pre{margin:0;padding:13px;border-top:1px solid var(--line);background:#f8fafc;max-height:300px;overflow:auto;font-size:11px;white-space:pre-wrap;word-break:break-word}
-.side-stack{display:grid;gap:24px;position:sticky;top:88px}
+.side-stack{display:grid;gap:24px;position:sticky;top:72px}
+.results-placeholder{min-height:286px;border:1px solid var(--line);border-radius:12px;background:#fff;box-shadow:0 4px 18px rgba(16,24,40,.045);padding:22px 24px;color:var(--muted)}.results-placeholder h2{margin:0;color:var(--navy);font-size:16px;font-weight:500}.results-placeholder p{margin:8px 0 18px;font-size:13px;line-height:1.5}.placeholder-list{display:grid;gap:9px}.placeholder-row{display:flex;align-items:center;gap:10px;border-top:1px solid var(--line2);padding-top:9px;font-size:12px}.placeholder-mark{width:7px;height:7px;border-radius:50%;background:#98a2b3;flex:0 0 auto}
 .side-note{padding:18px 20px;background:#eef5ff;border:1px solid #cbdcf9;color:#35405f;font-size:14px;line-height:1.5}.side-note strong{color:var(--navy)}
 .batch-status{font-size:13px;color:#5f6678;margin-top:10px;min-height:18px}.download a{display:inline-block;margin-top:10px;color:var(--blue);font-weight:700}
-.history-details>summary{cursor:pointer;list-style:none;padding:16px 20px;color:var(--navy);font-weight:700;display:flex;justify-content:space-between;gap:12px}.history-details>summary::after{content:"+";color:var(--blue);font-size:20px}.history-details[open]>summary::after{content:"−"}.history-list{border-top:1px solid var(--line);max-height:300px;overflow:auto}.history-empty{padding:16px 20px;color:var(--muted);font-size:13px}.history-entry{width:100%;border:0;border-bottom:1px solid var(--line2);background:#fff;text-align:left;padding:12px 20px;cursor:pointer;color:var(--ink)}.history-entry:hover,.history-entry:focus-visible{background:#f5f8ff;outline:none}.history-query{font-weight:650;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.history-meta{font-size:12px;color:var(--muted);margin-top:4px}
+.history-details>summary{cursor:pointer;list-style:none;padding:16px 20px;color:var(--navy);font-weight:400;display:flex;justify-content:space-between;gap:12px}.history-details>summary::after{content:"+";color:var(--blue);font-size:20px}.history-details[open]>summary::after{content:"−"}.history-list{border-top:1px solid var(--line);max-height:300px;overflow:auto}.history-empty{padding:16px 20px;color:var(--muted);font-size:13px}.history-entry{width:100%;border:0;border-bottom:1px solid var(--line2);background:#fff;text-align:left;padding:12px 20px;cursor:pointer;color:var(--ink)}.history-entry:hover,.history-entry:focus-visible{background:#f5f8ff;outline:none}.history-query{font-weight:400;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.history-meta{font-size:12px;color:var(--muted);margin-top:4px;font-weight:400}
 .history-dialog{width:min(680px,calc(100vw - 28px));max-height:82vh;border:1px solid var(--line);border-radius:12px;padding:0;box-shadow:0 24px 70px rgba(16,24,40,.24);color:var(--ink)}.history-dialog::backdrop{background:rgba(16,26,70,.38)}.dialog-head{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--line);padding:16px 18px;display:flex;align-items:center;justify-content:space-between;gap:16px}.dialog-head h2{font-size:17px;color:var(--navy);margin:0}.dialog-close{border:1px solid var(--line);border-radius:7px;background:#fff;min-width:40px;min-height:40px;cursor:pointer;font-size:20px}.dialog-body{padding:18px;overflow:auto}.dialog-query{font-size:18px;font-weight:650;color:var(--navy);overflow-wrap:anywhere}.dialog-meta{font-size:12px;color:var(--muted);margin-top:6px}
 .issue-box{display:none;margin-top:16px;border:1px solid #f1c7c3;background:#fff7f6;padding:14px}.issue-box.show{display:block}.issue-box h3{margin:0 0 8px;color:#8f251d;font-size:14px}.issue-box ul{margin:0;padding-left:18px;font-size:13px;line-height:1.5;color:#69403c}
 @media(max-width:850px){.layout{grid-template-columns:1fr}.left-column,.result-column{display:contents}.side-stack{grid-template-columns:1fr 1fr;position:static}.page{padding:22px 18px 48px}.hero{display:block}.subtitle{text-align:left;margin-top:5px}.topbar{padding:0 18px}}
-@media(max-width:620px){.topbar{height:58px}.brand{font-size:20px}.page{padding:22px 16px 42px}.form-grid,.advanced-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.actions{flex-direction:column}.btn{width:100%}.side-stack{grid-template-columns:1fr}.summary-grid{grid-template-columns:1fr 1fr}.metric:nth-child(2){border-right:0}.metric:nth-child(-n+2){border-bottom:1px solid var(--line)}.trace-row{grid-template-columns:58px 20px 1fr;padding:10px 10px}.status-pill span:last-child{display:none}}
+@media(max-width:620px){.topbar{height:58px}.brand{font-size:20px}.page{padding:22px 16px 42px}.form-grid,.advanced-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.actions{flex-direction:column}.btn{width:100%}.side-stack{grid-template-columns:1fr}.summary-grid{grid-template-columns:1fr 1fr}.metric:nth-child(2){border-right:0}.metric:nth-child(-n+2){border-bottom:1px solid var(--line)}.trace-row{grid-template-columns:58px 20px 1fr;padding:10px 10px}}
 </style>
 </head>
 <body>
 <header class="topbar">
   <div class="brand"><span class="brand-mark">Q</span><span>QikReach</span></div>
-  <div id="backend-pill" class="status-pill offline" aria-live="polite"><span class="status-dot"></span><span id="backend-label">Backend checking</span></div>
 </header>
 
 <main class="page">
-  <div class="breadcrumb">Home &nbsp;/&nbsp; Lead Intelligence</div>
   <section class="hero">
-    <div class="eyebrow">Business intelligence</div>
     <h1>Lead Intelligence</h1>
     <p class="subtitle">Search anything, discover relevant public sources, and extract verifiable contact intelligence.</p>
   </section>
@@ -133,11 +130,11 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
           </div>
         </form>
 
-        <div id="health" class="health-line" aria-live="polite">Checking backend health…</div>
+        <div id="health" class="health-line" aria-live="polite">Search service checking…</div>
 
         <div id="status" class="search-state" role="status" aria-live="polite">
-          <div class="state-title">Ready</div>
-          <div class="state-copy">Enter anything to search. QikReach will determine whether it is a person, business, contact value, or general topic.</div>
+          <div class="state-title">Waiting for a search</div>
+          <div class="state-copy">Results will appear on the right.</div>
         </div>
         <div id="diagnostic" class="diagnostic" aria-live="polite"></div>
         <section class="trace" aria-labelledby="trace-heading">
@@ -163,6 +160,15 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
     </section>
 
     <section class="result-column">
+      <section id="results-placeholder" class="results-placeholder" aria-labelledby="placeholder-heading">
+        <h2 id="placeholder-heading">Results workspace</h2>
+        <p>Run a search to populate the right side with the most relevant verified findings first.</p>
+        <div class="placeholder-list" aria-label="Result layout preview">
+          <div class="placeholder-row"><span class="placeholder-mark"></span><span>Business identity and page context</span></div>
+          <div class="placeholder-row"><span class="placeholder-mark"></span><span>Clean phone and email contacts</span></div>
+          <div class="placeholder-row"><span class="placeholder-mark"></span><span>Sources and lower-confidence matches kept below</span></div>
+        </div>
+      </section>
       <section id="results" class="results panel" aria-labelledby="results-heading">
           <div class="panel-head"><h2 id="results-heading">Results</h2><span id="result-status" class="timer"></span></div>
           <div id="summary-grid" class="summary-grid"></div>
@@ -218,11 +224,6 @@ function formatElapsed(ms) {
   return `${String(Math.floor(total / 60)).padStart(2,'0')}:${String(total % 60).padStart(2,'0')}`;
 }
 function elapsed() { return runStartedAt ? formatElapsed(Date.now() - runStartedAt) : '00:00'; }
-function setBackend(state, text) {
-  const pill = $('backend-pill');
-  pill.className = `status-pill ${state}`;
-  $('backend-label').textContent = text;
-}
 function transition(state) {
   currentSearchState = state;
 }
@@ -264,6 +265,7 @@ function resetLiveResults() {
   livePhones = new Map();
   liveEmails = new Map();
   liveSources = new Map();
+  $('results-placeholder').style.display = '';
   $('results').classList.remove('show');
   $('summary-grid').replaceChildren();
   $('result-content').replaceChildren();
@@ -319,6 +321,7 @@ function externalSearchLinks(query='') {
 function renderLiveResults() {
   const sources = orderedSources([...liveSources.values()]);
   if (!sources.length && !livePhones.size && !liveEmails.size) return;
+  $('results-placeholder').style.display = 'none';
   const processed = sources.filter(source => ['scraped','failed'].includes(source.status)).length;
   $('results').classList.add('show');
   $('result-status').textContent = 'SEARCHING — LIVE';
@@ -461,21 +464,18 @@ async function checkHealth({retries=0, traceEvents=false}={}) {
       const data = await readResponse(response);
       if (!response.ok || !data.ok) { const error = new Error(data.detail || data.error || `Health HTTP ${response.status}`); error.status = response.status; throw error; }
       if (!data.search_ready) { const error = new Error('Search providers are temporarily unavailable.'); error.status = 503; throw error; }
-      setBackend('online','Backend Online');
       const provider = data.primary_provider ? String(data.primary_provider).replaceAll('_',' ') : 'unconfigured';
-      $('health').textContent = `Backend Online • Primary search: ${provider} • Crawler ${data.browser_crawler_ready ? 'ready' : 'fallback only'} • Batch ${data.batch_ready ? 'ready' : 'unavailable'}`;
-      if (traceEvents) trace('Backend online', `HTTP ${response.status} • primary provider ${provider} • browser crawler ${data.browser_crawler_ready ? 'ready' : 'fallback only'}`, 'success');
+      $('health').textContent = `Search service ready • ${provider} • Crawler ${data.browser_crawler_ready ? 'ready' : 'fallback only'} • Batch ${data.batch_ready ? 'ready' : 'unavailable'}`;
+      if (traceEvents) trace('Search service ready', `HTTP ${response.status} • primary provider ${provider} • browser crawler ${data.browser_crawler_ready ? 'ready' : 'fallback only'}`, 'success');
       return data;
     } catch (error) {
       if (attempt < retries) {
         transition(SearchState.BACKEND_WAKING);
-        setBackend('waking','Backend Waking');
         $('health').textContent = 'Backend may be waking from Render sleep. Retrying…';
         if (traceEvents) trace('Backend not ready yet', `${error.message}. Waiting before retry.`, 'warning');
         await new Promise(resolve => setTimeout(resolve, 1800 + attempt * 1200));
         continue;
       }
-      setBackend('offline','Backend Offline');
       $('health').textContent = `Backend unavailable: ${error.message}`;
       if (traceEvents) trace('Backend health failed', error.message, 'error');
       throw error;
@@ -609,6 +609,7 @@ async function fallbackSearch(searchPayload) {
 }
 function renderResult(result) {
   if (!result) return;
+  $('results-placeholder').style.display = 'none';
   const phones = result.phones || [];
   const emails = result.emails || [];
   const sources = orderedSources(result.sources || []);
