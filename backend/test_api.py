@@ -20,6 +20,8 @@ class SearchBehaviorTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(api.search_mode(api.SearchRequest(query="John Doe from 33139")), "contact")
         self.assertEqual(api.search_mode(api.SearchRequest(query="4T Manufacturing LLC")), "contact")
         self.assertEqual(api.search_mode(api.SearchRequest(query="305-555-0100")), "contact")
+        self.assertEqual(api.search_subject(["984 LLC"]), '"984 LLC"')
+        self.assertEqual(api.search_subject(["potato"]), "potato")
 
     def test_html_contact_surfaces_and_phone_type(self) -> None:
         html = """
@@ -41,6 +43,43 @@ class SearchBehaviorTests(unittest.IsolatedAsyncioTestCase):
         source = api.source_result(item, html, "John Doe directory", "static", ["John Doe from 33139"], "contact", 0.01)
         self.assertFalse(source["identity_match"])
         self.assertEqual(source["phones"], [])
+
+    def test_known_phone_query_keeps_only_requested_number(self) -> None:
+        item = {"url": "https://example.com/directory", "title": "Eastland Car Service", "snippet": "7183826868", "provider": "test"}
+        html = "<p>Call 718-382-6868 or our other offices 917-336-1193 and 718-888-5555.</p>"
+        source = api.source_result(item, html, "Eastland Car Service 7183826868", "static", ["7183826868"], "contact", 0.01)
+        self.assertEqual([phone["number"] for phone in source["phones"]], ["+17183826868"])
+
+    def test_known_email_query_keeps_only_requested_email(self) -> None:
+        item = {"url": "https://example.com/contact", "title": "Example LLC", "snippet": "sales@example.com", "provider": "test"}
+        html = "<p>sales@example.com and billing@example.com</p>"
+        source = api.source_result(item, html, "Example LLC sales@example.com", "static", ["sales@example.com"], "contact", 0.01)
+        self.assertEqual(source["emails"], ["sales@example.com"])
+
+    def test_source_details_and_directory_mailbox_filter(self) -> None:
+        item = {
+            "url": "https://www.mapquest.com/us/idaho/example-123",
+            "title": "Example Homes LLC, 984 W Corporate Ln, Nampa, ID 83651-1743, US - MapQuest",
+            "snippet": "Example Homes LLC specializes in custom home building. The owner is Jane Doe.",
+            "provider": "test",
+        }
+        source = api.source_result(item, "<p>Call 208-466-2500 help@mapquest.com</p>", item["snippet"], "static", ["Example Homes LLC"], "contact", 0.01)
+        self.assertEqual(source["emails"], [])
+        self.assertEqual(source["details"]["address"], "984 W Corporate Ln, Nampa, ID 83651-1743")
+        self.assertIn("custom home building", source["details"]["business_type"])
+        self.assertEqual(source["details"]["owner"], "Jane Doe")
+
+    def test_business_phrase_does_not_match_number_inside_unrelated_address(self) -> None:
+        item = {
+            "url": "https://www.mapquest.com/us/idaho/shervik-signature-homes-llc-288519777",
+            "title": "Shervik Signature Homes LLC, 984 W Corporate Ln, Nampa, ID 83651-1743, US - MapQuest",
+            "snippet": "Shervik Signature Homes specializes in custom home building.",
+            "provider": "test",
+        }
+        source = api.source_result(item, "<p>Call 208-466-2500</p>", item["snippet"], "static", ["984 LLC"], "contact", 0.01)
+        self.assertFalse(source["identity_match"])
+        self.assertEqual(source["phones"], [])
+        self.assertEqual(source["details"], {})
 
     async def test_general_query_succeeds_with_sources_without_contacts(self) -> None:
         discovered = [{"url": "https://example.com/", "title": "Potato", "snippet": "Potato reference", "provider": "test"}]

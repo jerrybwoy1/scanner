@@ -46,10 +46,20 @@ PHONE_RE = re.compile(
 )
 INTERNATIONAL_PHONE_RE = re.compile(r"(?<!\w)\+\d(?:[\s.()/-]*\d){7,14}(?!\w)")
 BUSINESS_HINT_RE = re.compile(
-    r"\b(?:llc|inc|incorporated|corp|corporation|company|co\.?|manufacturing|services|business|owner|contact|phone|email)\b",
+    r"\b(?:llc|inc|incorporated|corp|corporation|company|co\.?|manufacturing|service|services|business|owner|contact|phone|email)\b",
     re.I,
 )
 ZIP_RE = re.compile(r"(?<!\d)\d{5}(?:-\d{4})?(?!\d)")
+ADDRESS_RE = re.compile(
+    r"\b\d{1,6}\s+[A-Z0-9][^,\n]{1,70}(?:,\s*#?[A-Z0-9][^,\n]{0,15})?,\s*[A-Z][A-Za-z .'-]{2,40},\s*[A-Z]{2}\s+\d{5}(?:-\d{4})?\b",
+    re.I,
+)
+DIRECTORY_DOMAINS = {
+    "mapquest.com", "whitepages.com", "yelp.com", "yellowpages.com", "superpages.com",
+    "bizprofile.net", "openigloo.com", "buzzfile.com", "company-detail.com", "truepeoplesearch.com",
+}
+GENERIC_MAILBOXES = {"help", "support", "contact", "info", "sales", "privacy", "admin", "noreply", "no-reply", "webmaster"}
+NAME_STOPWORDS = {"from", "near", "in", "at", "on", "around", "zip", "zipcode", "county", "state", "phone", "email", "address"}
 
 PROVIDER_STATE: dict[str, dict[str, Any]] = {
     "gemini_google": {"status": "unknown" if GEMINI_API_KEY else "not_configured"},
@@ -230,6 +240,86 @@ def extract_contacts(text: str) -> tuple[list[dict[str, str]], list[str]]:
     return phones[:25], emails
 
 
+def requested_phone_digits(terms: list[str]) -> set[str]:
+    """Return the last ten digits of phone identifiers explicitly supplied by the user."""
+    requested: set[str] = set()
+    for term in terms:
+        for match in phonenumbers.PhoneNumberMatcher(term, "US"):
+            normalized = normalize_phone(match.raw_string)
+            if normalized:
+                requested.add(re.sub(r"\D", "", normalized["number"])[-10:])
+    return requested
+
+
+def requested_emails(terms: list[str]) -> set[str]:
+    return {value.casefold() for term in terms for value in EMAIL_RE.findall(term)}
+
+
+def filter_contacts_for_identity(
+    phones: list[dict[str, str]], emails: list[str], terms: list[str]
+) -> tuple[list[dict[str, str]], list[str]]:
+    """Avoid attributing unrelated contacts found on a directory page to a known identity."""
+    phone_keys = requested_phone_digits(terms)
+    email_keys = requested_emails(terms)
+    if phone_keys:
+        phones = [
+            phone for phone in phones
+            if re.sub(r"\D", "", phone.get("number", ""))[-10:] in phone_keys
+        ]
+    if email_keys:
+        emails = [email for email in emails if email.casefold() in email_keys]
+    return phones, emails
+
+
+def source_host(url: str) -> str:
+    return (urlparse(clean(url)).hostname or "").lower().removeprefix("www.")
+
+
+def filter_source_emails(emails: list[str], item: dict[str, str], terms: list[str]) -> list[str]:
+    requested = requested_emails(terms)
+    host = source_host(item.get("url", ""))
+    filtered: list[str] = []
+    for email in emails:
+        local, _, domain = email.casefold().partition("@")
+        if email.casefold() in requested:
+            filtered.append(email)
+            continue
+        if host in DIRECTORY_DOMAINS and domain == host and local in GENERIC_MAILBOXES:
+            continue
+        filtered.append(email)
+    return filtered
+
+
+def extract_business_details(item: dict[str, str], html: str, text: str) -> dict[str, str]:
+    """Extract only explicit page context; missing fields stay absent rather than guessed."""
+    surface = "\n".join(value for value in (item.get("title", ""), item.get("snippet", ""), text) if value)
+    details: dict[str, str] = {}
+    addresses = ADDRESS_RE.findall(surface)
+    if addresses:
+        details["address"] = re.sub(r"\s+", " ", addresses[0]).strip(" .,;")
+    patterns = (
+        r"(?:specializes in|specialised in)\s+([^.;\n]{3,120})",
+        r"(?:is in the|operates in the)\s+([^.;\n]{3,120})\s+business",
+        r"(?:provides?|providing|offers?)\s+([^.;\n]{3,120})",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, surface, re.I)
+        if match:
+            value = re.sub(r"\s+", " ", match.group(1)).strip(" ,;:")
+            if value:
+                details["business_type"] = value[:160]
+                break
+    owner = re.search(
+        r"(?:owner|owned by|proprietor|founder|president|contact person)\s*(?:(?:is|:|-)\s*)?([A-Z][A-Za-z'-]+(?:\s+[A-Z][A-Za-z'-]+){0,3})",
+        surface,
+    )
+    if owner:
+        details["owner"] = owner.group(1).strip()
+    if item.get("snippet"):
+        details["summary"] = re.sub(r"\s+", " ", item["snippet"]).strip()[:700]
+    return details
+
+
 def identity(request: SearchRequest) -> list[str]:
     values = [
         request.query,
@@ -253,7 +343,10 @@ def identity(request: SearchRequest) -> list[str]:
 
 
 def search_subject(terms: list[str]) -> str:
-    return " ".join(terms)[:600]
+    subject = " ".join(terms).strip()
+    if len(subject.split()) >= 2 and any(BUSINESS_HINT_RE.search(term) for term in terms):
+        return f'"{subject}"'[:600]
+    return subject[:600]
 
 
 def search_mode(request: SearchRequest) -> str:
@@ -567,6 +660,7 @@ def relevance(text: str, terms: list[str]) -> int:
 def identity_constraints_met(text: str, terms: list[str]) -> bool:
     folded = text.casefold()
     digits = re.sub(r"\D", "", text)
+    normalized_text = re.sub(r"[^a-z0-9]+", " ", folded).strip()
     required_zips = {value for term in terms for value in ZIP_RE.findall(term)}
     required_emails = {value.casefold() for term in terms for value in EMAIL_RE.findall(term)}
     required_phones: set[str] = set()
@@ -575,6 +669,12 @@ def identity_constraints_met(text: str, terms: list[str]) -> bool:
             normalized = normalize_phone(match.raw_string)
             if normalized:
                 required_phones.add(re.sub(r"\D", "", normalized["number"])[-10:])
+    for term in terms:
+        if not BUSINESS_HINT_RE.search(term):
+            continue
+        phrase = re.sub(r"[^a-z0-9]+", " ", term.casefold()).strip()
+        if len(phrase.split()) >= 2 and phrase not in normalized_text:
+            return False
     return (
         all(value.casefold() in folded for value in required_zips)
         and all(value in folded for value in required_emails)
@@ -587,6 +687,8 @@ def source_result(item: dict[str, str], html: str, text: str, method: str, terms
     score = relevance(combined, terms)
     identity_match = identity_constraints_met(combined, terms)
     phones, emails = extract_contacts(extraction_surface(html, text)) if mode == "contact" and score >= 2 and identity_match else ([], [])
+    phones, emails = filter_contacts_for_identity(phones, emails, terms)
+    emails = filter_source_emails(emails, item, terms)
     result: dict[str, Any] = {
         **item,
         "status": "scraped",
@@ -595,6 +697,7 @@ def source_result(item: dict[str, str], html: str, text: str, method: str, terms
         "identity_match": identity_match,
         "phones": phones,
         "emails": emails,
+        "details": extract_business_details(item, html, text) if identity_match else {},
         "duration_seconds": round(duration, 2),
     }
     if fallback_reason:
@@ -609,6 +712,8 @@ def snippet_result(item: dict[str, str], terms: list[str], mode: str, reason: st
     score = relevance(surface, terms)
     identity_match = identity_constraints_met(surface, terms)
     phones, emails = extract_contacts(surface) if score >= 2 and identity_match else ([], [])
+    phones, emails = filter_contacts_for_identity(phones, emails, terms)
+    emails = filter_source_emails(emails, item, terms)
     if not phones and not emails:
         return None
     return {
@@ -619,6 +724,7 @@ def snippet_result(item: dict[str, str], terms: list[str], mode: str, reason: st
         "identity_match": identity_match,
         "phones": phones,
         "emails": emails,
+        "details": extract_business_details(item, "", "") if identity_match else {},
         "fallback_reason": reason,
         "duration_seconds": round(duration, 2),
     }
@@ -653,6 +759,9 @@ async def emit_source_completed(emit: Any, position: int, total: int, source: di
         identity_match=source["identity_match"],
         phones=source["phones"],
         emails=source["emails"],
+        title=source.get("title", ""),
+        snippet=source.get("snippet", ""),
+        details=source.get("details", {}),
         fallback_reason=source.get("fallback_reason", ""),
         duration_seconds=source["duration_seconds"],
     )
@@ -844,7 +953,11 @@ async def run_search(request: SearchRequest, emit: Any = None) -> dict[str, Any]
     phone_map: dict[tuple[str, str], dict[str, Any]] = {}
     email_set: set[str] = set()
     email_sources: dict[str, list[str]] = {}
+    business_details: list[dict[str, Any]] = []
     for source in sources:
+        details = source.get("details") or {}
+        if details:
+            business_details.append({"source_url": source["url"], "source_title": source.get("title", ""), **details})
         for phone in source.get("phones", []):
             key = (phone["number"], phone["extension"])
             record = phone_map.setdefault(key, {**phone, "source_urls": []})
@@ -887,6 +1000,7 @@ async def run_search(request: SearchRequest, emit: Any = None) -> dict[str, Any]
         "identity": request.model_dump(),
         "phones": list(phone_map.values()),
         "emails": email_records,
+        "business_details": business_details[:12],
         "officers": [],
         "companies": [],
         "sources": sources,

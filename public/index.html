@@ -38,7 +38,8 @@ a{color:var(--blue);text-underline-offset:2px}
 .eyebrow{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#6d7085;margin-bottom:8px}
 h1{margin:0;color:var(--navy);font-weight:400;font-size:clamp(30px,4vw,46px);letter-spacing:-1.3px}
 .subtitle{font-size:18px;color:#53586d;line-height:1.5;margin:12px 0 0;max-width:760px}
-.layout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(300px,.8fr);gap:24px;align-items:start}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;align-items:start}
+.result-column{display:grid;gap:24px;min-width:0}.results.panel{margin-top:0}.result-column>.side-stack{position:static;top:auto}
 .panel{border:1px solid #dfe3eb;border-radius:12px;background:#fff;box-shadow:0 4px 18px rgba(16,24,40,.055);overflow:hidden}
 .panel-head{padding:18px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:12px}
 .panel-head h2{font-size:18px;color:var(--navy);font-weight:600;margin:0}
@@ -79,7 +80,7 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
 .metric{padding:15px;border-right:1px solid var(--line)}.metric:last-child{border-right:0}.metric-value{font-size:24px;color:var(--navy)}.metric-label{font-size:12px;color:var(--muted);margin-top:4px}
 .result-section{border:1px solid var(--line);border-radius:8px;margin-top:14px;overflow:hidden}.result-section h3,.result-section>summary{margin:0;padding:13px 16px;border-bottom:1px solid var(--line);font-size:15px;font-weight:650;color:var(--navy);background:#fafbfc}.result-section>summary{cursor:pointer;list-style:none;border-bottom:0}.result-section[open]>summary{border-bottom:1px solid var(--line)}.result-section>summary::after{content:"+";float:right;color:var(--blue);font-size:18px}.result-section[open]>summary::after{content:"−"}
 .result-body{padding:14px 16px}.item-list{display:flex;flex-wrap:wrap;gap:8px}.item{border:1px solid var(--line);padding:8px 10px;background:#fff;font-size:13px}
-.source-card{padding:13px 0;border-bottom:1px solid var(--line2)}.source-card:last-child{border-bottom:0}.source-title{font-weight:600;color:#30364b}.source-meta{font-size:12px;color:#667085;margin-top:5px}.source-error{font-size:12px;color:var(--danger);margin-top:5px;overflow-wrap:anywhere}.source-url{display:block;margin-top:5px;overflow-wrap:anywhere;word-break:break-word}.source-extracted{margin-top:7px;color:#176448;font-size:12px;overflow-wrap:anywhere}
+.source-card{padding:13px 0;border-bottom:1px solid var(--line2)}.source-card:last-child{border-bottom:0}.source-title{font-weight:600;color:#30364b}.source-meta{font-size:12px;color:#667085;margin-top:5px}.source-error{font-size:12px;color:var(--danger);margin-top:5px;overflow-wrap:anywhere}.source-url{display:block;margin-top:5px;overflow-wrap:anywhere;word-break:break-word}.source-extracted{margin-top:7px;color:#176448;font-size:12px;overflow-wrap:anywhere}.source-snippet{margin-top:8px;color:#475467;font-size:13px;line-height:1.45;overflow-wrap:anywhere}.contact-source{display:block;margin-top:6px;color:#667085;font-size:12px;line-height:1.35;overflow-wrap:anywhere}.contact-source a{display:inline;color:var(--blue);font-weight:600}.detail-card{border:1px solid var(--line);padding:11px 12px;background:#fff;min-width:min(100%,320px);flex:1 1 320px}.detail-label{font-size:12px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em}.detail-value{font-size:13px;color:#30364b;margin-top:4px;line-height:1.45;overflow-wrap:anywhere}.detail-source{font-size:12px;color:var(--muted);margin-top:7px}
 .tech{margin-top:14px;border:1px solid var(--line)}.tech summary{padding:11px 13px;cursor:pointer;color:#475467;font-size:13px}.tech pre{margin:0;padding:13px;border-top:1px solid var(--line);background:#f8fafc;max-height:300px;overflow:auto;font-size:11px;white-space:pre-wrap;word-break:break-word}
 .side-stack{display:grid;gap:24px;position:sticky;top:88px}
 .side-note{padding:18px 20px;background:#eef5ff;border:1px solid #cbdcf9;color:#35405f;font-size:14px;line-height:1.5}.side-note strong{color:var(--navy)}
@@ -87,7 +88,7 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
 .history-details>summary{cursor:pointer;list-style:none;padding:16px 20px;color:var(--navy);font-weight:700;display:flex;justify-content:space-between;gap:12px}.history-details>summary::after{content:"+";color:var(--blue);font-size:20px}.history-details[open]>summary::after{content:"−"}.history-list{border-top:1px solid var(--line);max-height:300px;overflow:auto}.history-empty{padding:16px 20px;color:var(--muted);font-size:13px}.history-entry{width:100%;border:0;border-bottom:1px solid var(--line2);background:#fff;text-align:left;padding:12px 20px;cursor:pointer;color:var(--ink)}.history-entry:hover,.history-entry:focus-visible{background:#f5f8ff;outline:none}.history-query{font-weight:650;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.history-meta{font-size:12px;color:var(--muted);margin-top:4px}
 .history-dialog{width:min(680px,calc(100vw - 28px));max-height:82vh;border:1px solid var(--line);border-radius:12px;padding:0;box-shadow:0 24px 70px rgba(16,24,40,.24);color:var(--ink)}.history-dialog::backdrop{background:rgba(16,26,70,.38)}.dialog-head{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--line);padding:16px 18px;display:flex;align-items:center;justify-content:space-between;gap:16px}.dialog-head h2{font-size:17px;color:var(--navy);margin:0}.dialog-close{border:1px solid var(--line);border-radius:7px;background:#fff;min-width:40px;min-height:40px;cursor:pointer;font-size:20px}.dialog-body{padding:18px;overflow:auto}.dialog-query{font-size:18px;font-weight:650;color:var(--navy);overflow-wrap:anywhere}.dialog-meta{font-size:12px;color:var(--muted);margin-top:6px}
 .issue-box{display:none;margin-top:16px;border:1px solid #f1c7c3;background:#fff7f6;padding:14px}.issue-box.show{display:block}.issue-box h3{margin:0 0 8px;color:#8f251d;font-size:14px}.issue-box ul{margin:0;padding-left:18px;font-size:13px;line-height:1.5;color:#69403c}
-@media(max-width:850px){.layout{grid-template-columns:1fr}.side-stack{grid-template-columns:1fr 1fr;position:static}.page{padding:26px 18px 48px}.topbar{padding:0 18px}}
+@media(max-width:850px){.layout{grid-template-columns:1fr}.result-column{display:contents}.side-stack{grid-template-columns:1fr 1fr;position:static}.page{padding:26px 18px 48px}.topbar{padding:0 18px}}
 @media(max-width:620px){.topbar{height:58px}.brand{font-size:20px}.page{padding:22px 16px 42px}.form-grid,.advanced-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.actions{flex-direction:column}.btn{width:100%}.side-stack{grid-template-columns:1fr}.summary-grid{grid-template-columns:1fr 1fr}.metric:nth-child(2){border-right:0}.metric:nth-child(-n+2){border-bottom:1px solid var(--line)}.trace-row{grid-template-columns:58px 20px 1fr;padding:10px 10px}.status-pill span:last-child{display:none}}
 </style>
 </head>
@@ -142,17 +143,19 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
           </div>
         </section>
 
-        <section id="results" class="results" aria-labelledby="results-heading">
+      </div>
+    </section>
+
+    <section class="result-column">
+      <section id="results" class="results panel" aria-labelledby="results-heading">
           <div class="panel-head"><h2 id="results-heading">Results</h2><span id="result-status" class="timer"></span></div>
           <div id="summary-grid" class="summary-grid"></div>
           <div id="result-content"></div>
           <div id="issue-box" class="issue-box"></div>
           <details class="tech"><summary>Technical Details / Raw Response</summary><pre id="raw-response"></pre></details>
         </section>
-      </div>
-    </section>
 
-    <aside class="side-stack">
+      <aside class="side-stack">
       <section class="panel">
         <div class="panel-head"><h2>Spreadsheet Enrichment</h2></div>
         <div class="panel-body">
@@ -175,7 +178,8 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
         <strong>Live diagnostics</strong><br>
         The activity panel reports only events the browser or backend actually confirms. If a source stalls, blocks automation, rate-limits, times out, or falls back to another retrieval method, the run will identify it.
       </div>
-    </aside>
+      </aside>
+    </section>
   </div>
 </main>
 
@@ -265,7 +269,19 @@ function resetLiveResults() {
 function contactSources(urls=[]) {
   const unique = [...new Set(urls.filter(Boolean))];
   if (!unique.length) return '';
-  return `<span class="source-meta">Source: ${unique.map(url => `<a class="source-url" href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(url)}</a>`).join('')}</span>`;
+  return `<span class="contact-source">Source: ${unique.map(url => { let domain = url; try { domain = new URL(url).hostname.replace(/^www\./,''); } catch {} return `<a href="${esc(url)}" title="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(domain)}</a>`; }).join(', ')}</span>`;
+}
+function sourceDomain(url='') {
+  try { return new URL(url).hostname.replace(/^www\./,''); } catch { return url || 'Unknown source'; }
+}
+function sourceSnippet(source) {
+  const snippet = String(source?.snippet || '').replace(/\s+/g,' ').trim();
+  return snippet ? `<div class="source-snippet">${esc(snippet.slice(0,700))}${snippet.length > 700 ? '…' : ''}</div>` : '';
+}
+function businessDetailsHtml(details=[]) {
+  const fields = [['business_type','Business type'],['address','Address'],['owner','Owner'],['summary','What the source says']];
+  const cards = details.flatMap(detail => fields.filter(([key]) => detail?.[key]).map(([key,label]) => `<div class="detail-card"><div class="detail-label">${label}</div><div class="detail-value">${esc(detail[key])}</div><div class="detail-source">From ${esc(detail.source_title || sourceDomain(detail.source_url || ''))}</div></div>`));
+  return cards.length ? `<section class="result-section"><h3>Business details extracted</h3><div class="result-body item-list">${cards.join('')}</div></section>` : '';
 }
 function externalSearchLinks(query='') {
   const encoded = encodeURIComponent(query);
@@ -291,8 +307,9 @@ function renderLiveResults() {
   const emails = [...liveEmails.values()];
   const phoneHtml = phones.length ? phones.map(phone => `<div class="item">${esc(phone.number)}${phone.extension ? ` ext ${esc(phone.extension)}` : ''}${phone.line_type ? ` · ${esc(phone.line_type)}` : ''}${contactSources(phone.source_urls)}</div>`).join('') : '<span class="item">No phone extracted yet</span>';
   const emailHtml = emails.length ? emails.map(email => `<div class="item">${esc(email.email)}${contactSources(email.source_urls)}</div>`).join('') : '<span class="item">No email extracted yet</span>';
-  const sourceHtml = sources.map(source => `<div class="source-card"><div class="source-title">${esc(source.title || 'Public source')}</div><a class="source-url" href="${esc(source.url)}" target="_blank" rel="noopener noreferrer">${esc(source.url)}</a><div class="source-meta">${esc(source.provider ? String(source.provider).replaceAll('_',' ') : 'provider pending')} · ${esc(source.status || 'discovered')}</div>${source.error ? `<div class="source-error">${esc(source.error)}</div>` : ''}</div>`).join('');
+  const sourceHtml = sources.map(source => `<div class="source-card"><div class="source-title">${esc(source.title || 'Public source')}</div><a class="source-url" href="${esc(source.url)}" title="${esc(source.url)}" target="_blank" rel="noopener noreferrer">Open ${esc(sourceDomain(source.url))}</a>${sourceSnippet(source)}<div class="source-meta">${esc(source.provider ? String(source.provider).replaceAll('_',' ') : 'provider pending')} · ${esc(source.status || 'discovered')}</div>${source.error ? `<div class="source-error">${esc(source.error)}</div>` : ''}</div>`).join('');
   $('result-content').innerHTML = `
+    ${businessDetailsHtml(sources.map(source => ({...source.details, source_url:source.url, source_title:source.title})).filter(source => source.details))}
     <section class="result-section"><h3>Phones — live</h3><div class="result-body item-list">${phoneHtml}</div></section>
     <section class="result-section"><h3>Emails — live</h3><div class="result-body item-list">${emailHtml}</div></section>
     <details class="result-section"><summary>Sources being checked (${sources.length}) — click to open</summary><div class="result-body">${sourceHtml}</div></details>`;
@@ -303,6 +320,8 @@ function recordLiveSource(event, status) {
   liveSources.set(event.url, {
     ...current,
     title:event.title || current.title || '',
+    snippet:event.snippet || current.snippet || '',
+    details:event.details || current.details || {},
     provider:event.provider || current.provider || '',
     status,
     error:event.error || ''
@@ -351,7 +370,8 @@ function saveHistory(result) {
     duration_seconds:result?.duration_seconds ?? null,
     phones:(result?.phones || []).map(phone => ({number:phone.number,extension:phone.extension || '',line_type:phone.line_type || '',region:phone.region || '',source_urls:phone.source_urls || []})),
     emails:(result?.emails || []).map(email => ({email:email.email,domain_status:email.domain_status || '',source_urls:email.source_urls || []})),
-    sources:(result?.sources || []).slice(0,12).map(source => ({url:source.url,title:source.title || '',status:source.status || '',provider:source.provider || '',method:source.method || '',phones:source.phones || [],emails:source.emails || []}))
+    business_details:(result?.business_details || []).slice(0,12),
+    sources:(result?.sources || []).slice(0,12).map(source => ({url:source.url,title:source.title || '',snippet:source.snippet || '',status:source.status || '',provider:source.provider || '',method:source.method || '',phones:source.phones || [],emails:source.emails || []}))
   };
   const saved = writeHistory([record,...readHistory()]);
   if (saved) renderHistory();
@@ -362,9 +382,9 @@ function openHistory(id) {
   if (!record) return;
   const phones = (record.phones || []).map(phone => `<div class="item">${esc(phone.number)}${phone.extension ? ` ext ${esc(phone.extension)}` : ''}${phone.line_type ? ` · ${esc(phone.line_type)}` : ''}${contactSources(phone.source_urls)}</div>`).join('') || '<span class="item">No phones extracted</span>';
   const emails = (record.emails || []).map(email => `<div class="item">${esc(email.email)}${email.domain_status ? ` · ${esc(email.domain_status)}` : ''}${contactSources(email.source_urls)}</div>`).join('') || '<span class="item">No emails extracted</span>';
-  const sources = (record.sources || []).map(source => `<div class="source-card"><div class="source-title">${esc(source.title || 'Public source')}</div><a class="source-url" href="${esc(source.url)}" target="_blank" rel="noopener noreferrer">${esc(source.url)}</a><div class="source-meta">${esc(source.status)}${source.provider ? ` · ${esc(String(source.provider).replaceAll('_',' '))}` : ''}${source.method ? ` · ${esc(source.method)}` : ''}</div></div>`).join('') || '<div class="source-card">No sources saved.</div>';
+  const sources = (record.sources || []).map(source => `<div class="source-card"><div class="source-title">${esc(source.title || 'Public source')}</div><a class="source-url" href="${esc(source.url)}" title="${esc(source.url)}" target="_blank" rel="noopener noreferrer">Open ${esc(sourceDomain(source.url))}</a>${sourceSnippet(source)}<div class="source-meta">${esc(source.status)}${source.provider ? ` · ${esc(String(source.provider).replaceAll('_',' '))}` : ''}${source.method ? ` · ${esc(source.method)}` : ''}</div></div>`).join('') || '<div class="source-card">No sources saved.</div>';
   const searchLinks = externalSearchLinks(record.query).map(([label,url]) => `<a class="item" href="${esc(url)}" target="_blank" rel="noopener noreferrer">Open ${esc(label)} search</a>`).join('');
-  $('history-detail').innerHTML = `<div class="dialog-query">${esc(record.query || 'Untitled search')}</div><div class="dialog-meta">${esc(new Date(record.saved_at).toLocaleString())} · ${esc(record.status || 'unknown')}${record.duration_seconds !== null ? ` · ${esc(record.duration_seconds)}s` : ''}</div><section class="result-section"><h3>Phones</h3><div class="result-body item-list">${phones}</div></section><section class="result-section"><h3>Emails</h3><div class="result-body item-list">${emails}</div></section><details class="result-section"><summary>Sources (${(record.sources || []).length}) — click to open</summary><div class="result-body">${sources}</div></details><details class="result-section"><summary>Open this query elsewhere</summary><div class="result-body item-list">${searchLinks}</div></details>`;
+  $('history-detail').innerHTML = `<div class="dialog-query">${esc(record.query || 'Untitled search')}</div><div class="dialog-meta">${esc(new Date(record.saved_at).toLocaleString())} · ${esc(record.status || 'unknown')}${record.duration_seconds !== null ? ` · ${esc(record.duration_seconds)}s` : ''}</div>${businessDetailsHtml(record.business_details || [])}<section class="result-section"><h3>Phones</h3><div class="result-body item-list">${phones}</div></section><section class="result-section"><h3>Emails</h3><div class="result-body item-list">${emails}</div></section><details class="result-section"><summary>Sources (${(record.sources || []).length}) — click to open</summary><div class="result-body">${sources}</div></details><details class="result-section"><summary>Open this query elsewhere</summary><div class="result-body item-list">${searchLinks}</div></details>`;
   const dialog = $('history-dialog');
   if (typeof dialog.showModal === 'function') dialog.showModal(); else dialog.setAttribute('open','');
 }
@@ -578,8 +598,9 @@ function renderResult(result) {
   const identity = result.identity || {};
   const identityValues = [['Universal query',identity.query],['Company',identity.fields?.company],['Person / Owner',identity.fields?.person],['Known phone',identity.fields?.phone],['Known email',identity.fields?.email]].filter(([,value]) => value);
   const identityHtml = identityValues.length ? identityValues.map(([label,value]) => `<span class="item"><strong>${esc(label)}:</strong> ${esc(value)}</span>`).join('') : '<span class="item">No identity details returned.</span>';
-  const sourceHtml = sources.length ? sources.map(s => { let sourceDomain = 'Unknown domain'; try { sourceDomain = new URL(s.url).hostname; } catch {} const extracted = [...(s.phones || []).map(phone => `${phone.number}${phone.extension ? ` ext ${phone.extension}` : ''}`),...(s.emails || [])]; return `<div class="source-card"><div class="source-title">${esc(s.title || 'Untitled source')}</div><div class="source-meta">${esc(sourceDomain)}${s.provider ? ` · ${esc(String(s.provider).replaceAll('_',' '))}` : ''}</div><a class="source-url" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.url)}</a><div class="source-meta">${esc(s.status)}${s.method ? ` · ${esc(s.method)}` : ''}${s.relevance !== undefined ? ` · relevance ${esc(s.relevance)}` : ''}${s.identity_match === false ? ' · identity not confirmed' : ''}${s.duration_seconds ? ` · ${esc(s.duration_seconds)}s` : ''}</div>${extracted.length ? `<div class="source-extracted">Extracted here: ${esc(extracted.join(' · '))}</div>` : ''}${s.fallback_reason ? `<div class="source-meta">Fallback reason: ${esc(s.fallback_reason)}</div>` : ''}${s.error ? `<div class="source-error">${esc(classifySourceError(s.error))}: ${esc(s.error)}</div>` : ''}</div>`; }).join('') : '<div class="source-card">No public sources discovered.</div>';
+  const sourceHtml = sources.length ? sources.map(s => { const extracted = [...(s.phones || []).map(phone => `${phone.number}${phone.extension ? ` ext ${phone.extension}` : ''}`),...(s.emails || [])]; return `<div class="source-card"><div class="source-title">${esc(s.title || 'Untitled source')}</div><div class="source-meta">${esc(sourceDomain(s.url))}${s.provider ? ` · ${esc(String(s.provider).replaceAll('_',' '))}` : ''}</div><a class="source-url" href="${esc(s.url)}" title="${esc(s.url)}" target="_blank" rel="noopener noreferrer">Open ${esc(sourceDomain(s.url))}</a>${sourceSnippet(s)}<div class="source-meta">${esc(s.status)}${s.method ? ` · ${esc(s.method)}` : ''}${s.relevance !== undefined ? ` · relevance ${esc(s.relevance)}` : ''}${s.identity_match === false ? ' · identity not confirmed' : ''}${s.duration_seconds ? ` · ${esc(s.duration_seconds)}s` : ''}</div>${extracted.length ? `<div class="source-extracted">Extracted here: ${esc(extracted.join(' · '))}</div>` : ''}${s.fallback_reason ? `<div class="source-meta">Fallback reason: ${esc(s.fallback_reason)}</div>` : ''}${s.error ? `<div class="source-error">${esc(classifySourceError(s.error))}: ${esc(s.error)}</div>` : ''}</div>`; }).join('') : '<div class="source-card">No public sources discovered.</div>';
   $('result-content').innerHTML = `
+    ${businessDetailsHtml(result.business_details || [])}
     <section class="result-section"><h3>Search Identity</h3><div class="result-body item-list">${identityHtml}</div></section>
     <section class="result-section"><h3>Phones</h3><div class="result-body item-list">${phoneHtml}</div></section>
     <section class="result-section"><h3>Emails</h3><div class="result-body item-list">${emailHtml}</div></section>
@@ -684,6 +705,12 @@ async function runSearch() {
 $('search-form').addEventListener('submit',event => {
   event.preventDefault();
   runSearch();
+});
+$('q').addEventListener('keydown',event => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    $('search-form').requestSubmit();
+  }
 });
 $('clear').addEventListener('click',() => {
   if (searchActive) return;
