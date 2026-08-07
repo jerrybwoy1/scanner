@@ -30,17 +30,16 @@ html,body{margin:0;min-height:100%;background:#f7f9fc;color:var(--ink);font-fami
 body{overflow-x:hidden}
 button,input{font:inherit}
 a{color:var(--blue);text-underline-offset:2px}
-.topbar{height:64px;border-bottom:1px solid #dfe3eb;box-shadow:0 1px 5px rgba(16,24,40,.05);display:flex;align-items:center;justify-content:space-between;padding:0 max(20px,calc((100vw - 1180px)/2));position:sticky;top:0;background:rgba(255,255,255,.96);z-index:20}
-.brand{display:flex;align-items:center;gap:10px;color:var(--navy);font-size:22px;font-weight:600;letter-spacing:-.5px}
+.topbar{height:54px;border-bottom:1px solid #dfe3eb;box-shadow:0 1px 5px rgba(16,24,40,.05);display:flex;align-items:center;justify-content:space-between;padding:0 max(20px,calc((100vw - 1180px)/2));position:sticky;top:0;background:rgba(255,255,255,.96);z-index:20}
+.brand{display:flex;align-items:center;gap:8px;color:var(--navy);font-size:18px;font-weight:500;letter-spacing:-.25px}
 .brand-mark{width:30px;height:30px;border-radius:8px;background:var(--navy);display:grid;place-items:center;font-size:14px;color:#fff;font-weight:800;box-shadow:0 3px 9px rgba(16,26,70,.18)}
 .status-pill{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:999px;padding:8px 12px;font-size:13px;color:var(--muted);background:#fff}
 .status-dot{width:8px;height:8px;border-radius:50%;background:#98a2b3}.status-pill.online .status-dot{background:var(--success)}.status-pill.waking .status-dot{background:#f0b429}.status-pill.offline .status-dot{background:var(--danger)}
-.page{max-width:1180px;margin:0 auto;padding:34px 24px 60px}
-.breadcrumb{font-size:13px;color:var(--muted);margin-bottom:24px}
-.hero{border-bottom:1px solid var(--line);padding-bottom:24px;margin-bottom:28px}
-.eyebrow{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#6d7085;margin-bottom:8px}
-h1{margin:0;color:var(--navy);font-weight:400;font-size:clamp(24px,3vw,34px);letter-spacing:-.7px}
-.subtitle{font-size:15px;color:#68717d;line-height:1.5;margin:9px 0 0;max-width:760px}
+.page{max-width:1180px;margin:0 auto;padding:14px 24px 50px}
+.breadcrumb,.eyebrow{display:none}
+.hero{border-bottom:1px solid var(--line);padding:0 0 12px;margin-bottom:16px;display:flex;align-items:baseline;justify-content:space-between;gap:18px}
+h1{margin:0;color:var(--navy);font-weight:400;font-size:clamp(19px,2vw,24px);letter-spacing:-.25px;white-space:nowrap}
+.subtitle{font-size:12px;color:#68717d;line-height:1.4;margin:0;max-width:560px;text-align:right}
 .layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;align-items:start}
 .left-column,.result-column{display:grid;gap:24px;min-width:0}.results.panel{margin-top:0}.result-column>.side-stack{position:static;top:auto}
 .panel{border:1px solid #dfe3eb;border-radius:12px;background:#fff;box-shadow:0 4px 18px rgba(16,24,40,.055);overflow:hidden}
@@ -81,8 +80,9 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
 .results{margin-top:24px;display:none}.results.show{display:block}
 .summary-grid{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);margin-bottom:18px}
 .metric{padding:9px 10px;border-right:1px solid var(--line)}.metric:last-child{border-right:0}.metric-value{font-size:18px;color:var(--navy);line-height:1.2}.metric-label{font-size:11px;color:var(--muted);margin-top:3px}
-.result-section{border:1px solid var(--line);border-radius:8px;margin-top:14px;overflow:hidden}.result-section h3,.result-section>summary{margin:0;padding:13px 16px;border-bottom:1px solid var(--line);font-size:15px;font-weight:650;color:var(--navy);background:#fafbfc}.result-section>summary{cursor:pointer;list-style:none;border-bottom:0}.result-section[open]>summary{border-bottom:1px solid var(--line)}.result-section>summary::after{content:"+";float:right;color:var(--blue);font-size:18px}.result-section[open]>summary::after{content:"−"}
+.result-section{border:1px solid var(--line);border-radius:8px;margin-top:14px;overflow:hidden}.result-section h3,.result-section>summary{margin:0;padding:13px 16px;border-bottom:1px solid var(--line);font-size:15px;font-weight:500;color:var(--navy);background:#fafbfc}.result-section>summary{cursor:pointer;list-style:none;border-bottom:0}.result-section[open]>summary{border-bottom:1px solid var(--line)}.result-section>summary::after{content:"+";float:right;color:var(--blue);font-size:18px}.result-section[open]>summary::after{content:"−"}
 .result-body{padding:14px 16px}.item-list{display:flex;flex-wrap:wrap;gap:8px}.item{border:1px solid var(--line);padding:8px 10px;background:#fff;font-size:13px}
+.result-more{width:100%;border:1px solid var(--line2);border-radius:7px;background:#fafbfc}.result-more summary{padding:9px 10px;cursor:pointer;color:var(--blue);font-size:12px;list-style:none}.result-more summary::after{content:"+";float:right}.result-more[open] summary::after{content:"−"}.result-more .item-list{padding:0 10px 10px}
 .source-card{padding:13px 0;border-bottom:1px solid var(--line2)}.source-card:last-child{border-bottom:0}.source-title{font-weight:500;color:#30364b}.source-meta{font-size:12px;color:#667085;margin-top:5px}.source-error{font-size:12px;color:var(--danger);margin-top:5px;overflow-wrap:anywhere}.source-url{display:block;margin-top:5px;overflow-wrap:anywhere;word-break:break-word}.source-extracted{margin-top:7px;color:#176448;font-size:12px;overflow-wrap:anywhere}.source-snippet{margin-top:8px;color:#475467;font-size:13px;line-height:1.45;overflow-wrap:anywhere}.contact-source{display:block;margin-top:6px;color:#667085;font-size:12px;line-height:1.35;overflow-wrap:anywhere}.contact-source a{display:inline;color:var(--blue);font-weight:500}.detail-card{border:1px solid var(--line);padding:11px 12px;background:#fff;min-width:min(100%,320px);flex:1 1 320px}.detail-label{font-size:12px;color:var(--muted);font-weight:500;text-transform:uppercase;letter-spacing:.04em}.detail-value{font-size:13px;color:#30364b;margin-top:4px;line-height:1.45;overflow-wrap:anywhere}.detail-source{font-size:12px;color:var(--muted);margin-top:7px}
 .tech{margin-top:14px;border:1px solid var(--line)}.tech summary{padding:11px 13px;cursor:pointer;color:#475467;font-size:13px}.tech pre{margin:0;padding:13px;border-top:1px solid var(--line);background:#f8fafc;max-height:300px;overflow:auto;font-size:11px;white-space:pre-wrap;word-break:break-word}
 .side-stack{display:grid;gap:24px;position:sticky;top:88px}
@@ -91,7 +91,7 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
 .history-details>summary{cursor:pointer;list-style:none;padding:16px 20px;color:var(--navy);font-weight:700;display:flex;justify-content:space-between;gap:12px}.history-details>summary::after{content:"+";color:var(--blue);font-size:20px}.history-details[open]>summary::after{content:"−"}.history-list{border-top:1px solid var(--line);max-height:300px;overflow:auto}.history-empty{padding:16px 20px;color:var(--muted);font-size:13px}.history-entry{width:100%;border:0;border-bottom:1px solid var(--line2);background:#fff;text-align:left;padding:12px 20px;cursor:pointer;color:var(--ink)}.history-entry:hover,.history-entry:focus-visible{background:#f5f8ff;outline:none}.history-query{font-weight:650;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.history-meta{font-size:12px;color:var(--muted);margin-top:4px}
 .history-dialog{width:min(680px,calc(100vw - 28px));max-height:82vh;border:1px solid var(--line);border-radius:12px;padding:0;box-shadow:0 24px 70px rgba(16,24,40,.24);color:var(--ink)}.history-dialog::backdrop{background:rgba(16,26,70,.38)}.dialog-head{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--line);padding:16px 18px;display:flex;align-items:center;justify-content:space-between;gap:16px}.dialog-head h2{font-size:17px;color:var(--navy);margin:0}.dialog-close{border:1px solid var(--line);border-radius:7px;background:#fff;min-width:40px;min-height:40px;cursor:pointer;font-size:20px}.dialog-body{padding:18px;overflow:auto}.dialog-query{font-size:18px;font-weight:650;color:var(--navy);overflow-wrap:anywhere}.dialog-meta{font-size:12px;color:var(--muted);margin-top:6px}
 .issue-box{display:none;margin-top:16px;border:1px solid #f1c7c3;background:#fff7f6;padding:14px}.issue-box.show{display:block}.issue-box h3{margin:0 0 8px;color:#8f251d;font-size:14px}.issue-box ul{margin:0;padding-left:18px;font-size:13px;line-height:1.5;color:#69403c}
-@media(max-width:850px){.layout{grid-template-columns:1fr}.left-column,.result-column{display:contents}.side-stack{grid-template-columns:1fr 1fr;position:static}.page{padding:26px 18px 48px}.topbar{padding:0 18px}}
+@media(max-width:850px){.layout{grid-template-columns:1fr}.left-column,.result-column{display:contents}.side-stack{grid-template-columns:1fr 1fr;position:static}.page{padding:22px 18px 48px}.hero{display:block}.subtitle{text-align:left;margin-top:5px}.topbar{padding:0 18px}}
 @media(max-width:620px){.topbar{height:58px}.brand{font-size:20px}.page{padding:22px 16px 42px}.form-grid,.advanced-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.actions{flex-direction:column}.btn{width:100%}.side-stack{grid-template-columns:1fr}.summary-grid{grid-template-columns:1fr 1fr}.metric:nth-child(2){border-right:0}.metric:nth-child(-n+2){border-bottom:1px solid var(--line)}.trace-row{grid-template-columns:58px 20px 1fr;padding:10px 10px}.status-pill span:last-child{display:none}}
 </style>
 </head>
@@ -154,7 +154,7 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
       <div class="panel-head"><h2>Spreadsheet Enrichment</h2></div>
       <div class="panel-body">
         <label for="file">Select Spreadsheet</label>
-        <input id="file" type="file" accept=".xlsx">
+        <input id="file" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
         <button id="batch" class="btn primary" type="button" style="width:100%;margin-top:12px">Execute Batch Enrichment</button>
         <div id="batchStatus" class="batch-status" aria-live="polite"></div>
         <div id="download" class="download"></div>
@@ -283,6 +283,23 @@ function sourceSnippet(source) {
   const snippet = String(source?.snippet || '').replace(/\s+/g,' ').trim();
   return snippet ? `<div class="source-snippet">${esc(snippet.slice(0,700))}${snippet.length > 700 ? '…' : ''}</div>` : '';
 }
+function sourceQuality(source={}) {
+  const details = source.details || {};
+  const detailCount = ['business_type','address','owner','summary'].filter(key => details[key]).length;
+  const contactCount = (source.phones || []).length + (source.emails || []).length;
+  const identity = source.identity_match === false ? -100 : 0;
+  const noisyDirectory = contactCount > 8 ? -45 : 0;
+  return identity + detailCount * 30 + Math.min(contactCount,3) * 8 + (source.status === 'scraped' ? 8 : 0) - Math.min(contactCount,20) - noisyDirectory;
+}
+function orderedSources(sources=[]) {
+  return [...sources].sort((a,b) => sourceQuality(b) - sourceQuality(a));
+}
+function compactContactItems(items, render, label) {
+  const visible = items.slice(0,8).map(render).join('');
+  const remaining = items.slice(8);
+  if (!remaining.length) return visible;
+  return `${visible}<details class="result-more"><summary>Show ${remaining.length} more ${label}</summary><div class="item-list">${remaining.map(render).join('')}</div></details>`;
+}
 function extractedFields(details={}) {
   return Object.entries({business_type:'business type',address:'address',owner:'owner',summary:'page summary'}).filter(([key]) => details?.[key]).map(([,label]) => label);
 }
@@ -300,7 +317,7 @@ function externalSearchLinks(query='') {
   ];
 }
 function renderLiveResults() {
-  const sources = [...liveSources.values()];
+  const sources = orderedSources([...liveSources.values()]);
   if (!sources.length && !livePhones.size && !liveEmails.size) return;
   const processed = sources.filter(source => ['scraped','failed'].includes(source.status)).length;
   $('results').classList.add('show');
@@ -313,8 +330,8 @@ function renderLiveResults() {
   ].map(([label,value]) => `<div class="metric"><div class="metric-value">${esc(value)}</div><div class="metric-label">${esc(label)}</div></div>`).join('');
   const phones = [...livePhones.values()];
   const emails = [...liveEmails.values()];
-  const phoneHtml = phones.length ? phones.map(phone => `<div class="item">${esc(phone.number)}${phone.extension ? ` ext ${esc(phone.extension)}` : ''}${phone.line_type ? ` · ${esc(phone.line_type)}` : ''}${contactSources(phone.source_urls)}</div>`).join('') : '<span class="item">No phone extracted yet</span>';
-  const emailHtml = emails.length ? emails.map(email => `<div class="item">${esc(email.email)}${contactSources(email.source_urls)}</div>`).join('') : '<span class="item">No email extracted yet</span>';
+  const phoneHtml = phones.length ? compactContactItems(phones, phone => `<div class="item">${esc(phone.number)}${phone.extension ? ` ext ${esc(phone.extension)}` : ''}${phone.line_type ? ` · ${esc(phone.line_type)}` : ''}${contactSources(phone.source_urls)}</div>`, 'phone results') : '<span class="item">No phone extracted yet</span>';
+  const emailHtml = emails.length ? compactContactItems(emails, email => `<div class="item">${esc(email.email)}${contactSources(email.source_urls)}</div>`, 'email results') : '<span class="item">No email extracted yet</span>';
   const sourceHtml = sources.map(source => `<div class="source-card"><div class="source-title">${esc(source.title || 'Public source')}</div><a class="source-url" href="${esc(source.url)}" title="${esc(source.url)}" target="_blank" rel="noopener noreferrer">${esc(sourceDomain(source.url))}</a>${sourceSnippet(source)}<div class="source-meta">${esc(source.provider ? String(source.provider).replaceAll('_',' ') : 'provider pending')} · ${esc(source.status || 'discovered')}</div>${source.error ? `<div class="source-error">${esc(source.error)}</div>` : ''}</div>`).join('');
   $('result-content').innerHTML = `
     ${businessDetailsHtml(sources.map(source => ({...source.details, source_url:source.url, source_title:source.title})).filter(source => source.details))}
@@ -594,7 +611,7 @@ function renderResult(result) {
   if (!result) return;
   const phones = result.phones || [];
   const emails = result.emails || [];
-  const sources = result.sources || [];
+  const sources = orderedSources(result.sources || []);
   $('results').classList.add('show');
   $('result-status').textContent = String(result.status || '').replaceAll('_',' ').toUpperCase();
   $('summary-grid').innerHTML = [
@@ -603,17 +620,17 @@ function renderResult(result) {
     ['Relevant',result.relevant_count ?? 0],
     ['Duration',`${result.duration_seconds ?? 0}s`]
   ].map(([label,value]) => `<div class="metric"><div class="metric-value">${esc(value)}</div><div class="metric-label">${esc(label)}</div></div>`).join('');
-  const phoneHtml = phones.length ? phones.map(x => `<div class="item">${esc(x.number)}${x.extension ? ` ext ${esc(x.extension)}` : ''}${x.line_type ? ` · ${esc(x.line_type)}` : ''}${x.region ? ` · ${esc(x.region)}` : ''}${contactSources(x.source_urls)}</div>`).join('') : '<span class="item">No phone numbers extracted</span>';
-  const emailHtml = emails.length ? emails.map(x => `<div class="item">${esc(x.email)} · ${esc(x.domain_status)}${contactSources(x.source_urls)}</div>`).join('') : '<span class="item">No emails extracted</span>';
+  const phoneHtml = phones.length ? compactContactItems(phones, x => `<div class="item">${esc(x.number)}${x.extension ? ` ext ${esc(x.extension)}` : ''}${x.line_type ? ` · ${esc(x.line_type)}` : ''}${x.region ? ` · ${esc(x.region)}` : ''}${contactSources(x.source_urls)}</div>`, 'phone results') : '<span class="item">No phone numbers extracted</span>';
+  const emailHtml = emails.length ? compactContactItems(emails, x => `<div class="item">${esc(x.email)} · ${esc(x.domain_status)}${contactSources(x.source_urls)}</div>`, 'email results') : '<span class="item">No emails extracted</span>';
   const identity = result.identity || {};
   const identityValues = [['Universal query',identity.query],['Company',identity.fields?.company],['Person / Owner',identity.fields?.person],['Known phone',identity.fields?.phone],['Known email',identity.fields?.email]].filter(([,value]) => value);
   const identityHtml = identityValues.length ? identityValues.map(([label,value]) => `<span class="item"><strong>${esc(label)}:</strong> ${esc(value)}</span>`).join('') : '<span class="item">No identity details returned.</span>';
   const sourceHtml = sources.length ? sources.map(s => { const extracted = [...(s.phones || []).map(phone => `${phone.number}${phone.extension ? ` ext ${phone.extension}` : ''}`),...(s.emails || [])]; return `<div class="source-card"><div class="source-title">${esc(s.title || 'Untitled source')}</div><div class="source-meta">${esc(sourceDomain(s.url))}${s.provider ? ` · ${esc(String(s.provider).replaceAll('_',' '))}` : ''}</div><a class="source-url" href="${esc(s.url)}" title="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(sourceDomain(s.url))}</a>${sourceSnippet(s)}<div class="source-meta">${esc(s.status)}${s.method ? ` · ${esc(s.method)}` : ''}${s.relevance !== undefined ? ` · relevance ${esc(s.relevance)}` : ''}${s.identity_match === false ? ' · identity not confirmed' : ''}${s.duration_seconds ? ` · ${esc(s.duration_seconds)}s` : ''}</div>${extracted.length ? `<div class="source-extracted">Extracted here: ${esc(extracted.join(' · '))}</div>` : ''}${s.fallback_reason ? `<div class="source-meta">Fallback reason: ${esc(s.fallback_reason)}</div>` : ''}${s.error ? `<div class="source-error">${esc(classifySourceError(s.error))}: ${esc(s.error)}</div>` : ''}</div>`; }).join('') : '<div class="source-card">No public sources discovered.</div>';
   $('result-content').innerHTML = `
     ${businessDetailsHtml(result.business_details || [])}
-    <section class="result-section"><h3>Search Identity</h3><div class="result-body item-list">${identityHtml}</div></section>
     <section class="result-section"><h3>Phones</h3><div class="result-body item-list">${phoneHtml}</div></section>
     <section class="result-section"><h3>Emails</h3><div class="result-body item-list">${emailHtml}</div></section>
+    <details class="result-section"><summary>Search identity</summary><div class="result-body item-list">${identityHtml}</div></details>
     <details class="result-section"><summary>Sources (${sources.length}) — click to open</summary><div class="result-body">${sourceHtml}</div></details>
     <section class="result-section"><h3>Search Summary</h3><div class="result-body item-list"><span class="item">Status: ${esc(result.status || 'unknown')}</span><span class="item">Mode: ${esc(result.mode || 'general')}</span><span class="item">Discovered: ${esc(result.discovered_count ?? 0)}</span><span class="item">Scraped: ${esc(result.scraped_count ?? 0)}</span><span class="item">Relevant: ${esc(result.relevant_count ?? 0)}</span><span class="item">Duration: ${esc(result.duration_seconds ?? '—')}s</span><span class="item">Proxy used: ${result.proxy_used ? 'Yes' : 'No'}</span></div></section>`;
   $('raw-response').textContent = JSON.stringify(result,null,2);
