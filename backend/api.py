@@ -1052,10 +1052,9 @@ async def root() -> dict[str, str]:
 async def health() -> dict[str, Any]:
     modules = module_status()
     configured = [name for name, _, _ in provider_chain()]
-    usable = [name for name in configured if PROVIDER_STATE.get(name, {}).get("status") != "offline"]
     return {
         "ok": modules["aiohttp"],
-        "search_ready": modules["aiohttp"] and bool(usable),
+        "search_ready": modules["aiohttp"] and bool(configured),
         "browser_crawler_ready": modules["crawl4ai"],
         "proxy_ready": modules["aiohttp_socks"],
         "batch_ready": modules["pandas"] and modules["openpyxl"],

@@ -440,7 +440,8 @@ async function checkHealth({retries=0, traceEvents=false}={}) {
     try {
       const response = await timedFetch(`/api/health?ts=${Date.now()}`, {cache:'no-store'}, 15000);
       const data = await readResponse(response);
-      if (!response.ok || !data.ok || !data.search_ready) throw new Error(data.detail || data.error || `Health HTTP ${response.status}`);
+      if (!response.ok || !data.ok) { const error = new Error(data.detail || data.error || `Health HTTP ${response.status}`); error.status = response.status; throw error; }
+      if (!data.search_ready) { const error = new Error('Search providers are temporarily unavailable.'); error.status = 503; throw error; }
       setBackend('online','Backend Online');
       const provider = data.primary_provider ? String(data.primary_provider).replaceAll('_',' ') : 'unconfigured';
       $('health').textContent = `Backend Online • Primary search: ${provider} • Crawler ${data.browser_crawler_ready ? 'ready' : 'fallback only'} • Batch ${data.batch_ready ? 'ready' : 'unavailable'}`;
