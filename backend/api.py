@@ -66,6 +66,7 @@ PROVIDER_STATE: dict[str, dict[str, Any]] = {
     "groq_web": {"status": "unknown" if GROQ_API_KEY else "not_configured"},
     "tavily": {"status": "unknown" if TAVILY_API_KEY else "not_configured"},
     "ddgs_brave": {"status": "unknown"},
+    "ddgs_bing": {"status": "unknown"},
     "ddgs_duckduckgo": {"status": "unknown"},
 }
 
@@ -381,7 +382,7 @@ def provider_chain() -> list[tuple[str, Callable[..., Awaitable[list[dict[str, s
         chain.append(("groq_web", groq_search, ""))
     if TAVILY_API_KEY:
         chain.append(("tavily", tavily_search, ""))
-    chain.extend((("ddgs_brave", None, "brave"), ("ddgs_duckduckgo", None, "duckduckgo")))
+    chain.extend((("ddgs_brave", None, "brave"), ("ddgs_bing", None, "bing"), ("ddgs_duckduckgo", None, "duckduckgo")))
     return chain
 
 
