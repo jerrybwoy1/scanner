@@ -100,7 +100,7 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
   <section class="hero">
     <div class="eyebrow">Business intelligence</div>
     <h1>Lead Intelligence</h1>
-    <p class="subtitle">Search, verify, enrich, and save business contact intelligence.</p>
+    <p class="subtitle">Search anything, discover relevant public sources, and extract verifiable contact intelligence.</p>
   </section>
 
   <div class="layout">
@@ -108,19 +108,12 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
       <div class="panel-head"><h2 id="search-heading">Search &amp; Enrich</h2><span id="run-id" class="timer"></span></div>
       <div class="panel-body">
         <div class="form-grid">
-          <div class="field full"><label for="q">Core Search Query</label><input id="q" type="search" inputmode="search" enterkeyhint="search" autocomplete="off" placeholder="Company, person, phone, email, EIN, state or ZIP"></div>
-          <div class="field"><label for="company">Company</label><input id="company" type="text" autocomplete="organization"></div>
-          <div class="field"><label for="person">Person / Owner</label><input id="person" type="text" autocomplete="name"></div>
-          <div class="field"><label for="phone">Known Phone</label><input id="phone" type="tel" inputmode="tel" autocomplete="tel"></div>
-          <div class="field"><label for="email">Known Email</label><input id="email" type="email" inputmode="email" autocomplete="email"></div>
+          <div class="field full"><label for="q">Universal Search</label><input id="q" type="search" inputmode="search" enterkeyhint="search" autocomplete="off" placeholder="Try a company, person and ZIP, phone, email, product, or any topic"></div>
         </div>
 
         <details class="advanced">
           <summary>Advanced Options</summary>
           <div class="advanced-grid">
-            <div class="field"><label for="ein">EIN</label><input id="ein" type="text"></div>
-            <div class="field"><label for="state">State</label><input id="state" type="text"></div>
-            <div class="field full"><label for="address">Address / City</label><input id="address" type="text" autocomplete="street-address"></div>
             <div class="field full"><label for="proxy">Optional Proxy URL</label><input id="proxy" type="text" autocomplete="off" placeholder="http:// or socks5://"></div>
           </div>
           <label class="check" for="verify"><input id="verify" type="checkbox" checked> Verify discovered email domains by MX record</label>
@@ -135,7 +128,7 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
 
         <div id="status" class="search-state" role="status" aria-live="polite">
           <div class="state-title">Ready</div>
-          <div class="state-copy">Enter one or more search values, then start the enrichment run.</div>
+          <div class="state-copy">Enter anything to search. QikReach will determine whether it is a person, business, contact value, or general topic.</div>
         </div>
         <div id="diagnostic" class="diagnostic" aria-live="polite"></div>
         <section id="live-contacts" class="live-contacts" aria-live="polite" aria-atomic="false">
@@ -262,7 +255,7 @@ function addLiveContacts(phones=[], emails=[]) {
   });
   if (!livePhones.size && !liveEmails.size) return;
   const items = [
-    ...[...livePhones.values()].map(phone => `${phone.number}${phone.extension ? ` ext ${phone.extension}` : ''}`),
+    ...[...livePhones.values()].map(phone => `${phone.number}${phone.extension ? ` ext ${phone.extension}` : ''}${phone.line_type ? ` · ${phone.line_type}` : ''}`),
     ...[...liveEmails.values()]
   ];
   $('live-contacts-list').innerHTML = items.map(item => `<span class="live-contact">${esc(item)}</span>`).join('');
@@ -279,13 +272,13 @@ function trace(title, detail='', state='active') {
 }
 function fields() {
   return {
-    company:$('company').value.trim(),
-    person:$('person').value.trim(),
-    phone:$('phone').value.trim(),
-    email:$('email').value.trim(),
-    ein:$('ein').value.trim(),
-    state:$('state').value.trim(),
-    address:$('address').value.trim()
+    company:'',
+    person:'',
+    phone:'',
+    email:'',
+    ein:'',
+    state:'',
+    address:''
   };
 }
 function payload() {
@@ -316,8 +309,9 @@ async function checkHealth({retries=0, traceEvents=false}={}) {
       const data = await readResponse(response);
       if (!response.ok || !data.ok || !data.search_ready) throw new Error(data.detail || data.error || `Health HTTP ${response.status}`);
       setBackend('online','Backend Online');
-      $('health').textContent = `Backend Online • Search ready • Crawler ${data.browser_crawler_ready ? 'ready' : 'fallback only'} • Proxy ${data.proxy_ready ? 'ready' : 'unavailable'} • Batch ${data.batch_ready ? 'ready' : 'unavailable'}`;
-      if (traceEvents) trace('Backend online', `HTTP ${response.status} • search_ready=true • browser_crawler_ready=${Boolean(data.browser_crawler_ready)}`, 'success');
+      const provider = data.primary_provider ? String(data.primary_provider).replaceAll('_',' ') : 'unconfigured';
+      $('health').textContent = `Backend Online • Primary search: ${provider} • Crawler ${data.browser_crawler_ready ? 'ready' : 'fallback only'} • Batch ${data.batch_ready ? 'ready' : 'unavailable'}`;
+      if (traceEvents) trace('Backend online', `HTTP ${response.status} • primary provider ${provider} • browser crawler ${data.browser_crawler_ready ? 'ready' : 'fallback only'}`, 'success');
       return data;
     } catch (error) {
       if (attempt < retries) {
@@ -350,22 +344,22 @@ function handleStreamEvent(event) {
   setDiagnostic('');
   switch (event.type) {
     case 'search_started': transition(SearchState.SEARCHING); trace('Backend search pipeline started','Request accepted by Python backend.','success'); break;
-    case 'input_validated': trace('Search inputs validated',`${(event.terms||[]).length} identity term(s) • MX verification ${event.verify_email_domains?'on':'off'} • proxy ${event.proxy_used?'on':'off'}`,'success'); break;
-    case 'queries_prepared': transition(SearchState.DISCOVERING); trace('Discovery queries prepared',`${event.count} query variations generated.`,'success'); break;
-    case 'discovery_started': transition(SearchState.DISCOVERING); trace('Public-source discovery started',`${event.query_count} searches queued.`,'active'); break;
-    case 'query_started': trace(`Discovery query ${event.index}/${event.total}`,event.query,'active'); break;
-    case 'query_completed': trace(`Discovery query ${event.index}/${event.total} complete`,`${event.results} result(s) returned for: ${event.query}`,'success'); break;
-    case 'query_failed': trace(`Discovery query ${event.index}/${event.total} failed`,`${event.category || 'error'} • ${event.error}`,'warning'); break;
+    case 'input_validated': trace('Universal query validated',`${event.mode || 'general'} search • MX verification ${event.verify_email_domains?'on':'off'} • proxy ${event.proxy_used?'on':'off'}`,'success'); break;
+    case 'queries_prepared': transition(SearchState.DISCOVERING); trace('Universal query prepared',`Search intent: ${event.mode || 'general'}.`,'success'); break;
+    case 'discovery_started': transition(SearchState.DISCOVERING); trace('Public-source discovery started',`${event.query_count} search provider(s) available.`,'active'); break;
+    case 'query_started': trace(`Trying ${String(event.provider || 'search provider').replaceAll('_',' ')}`,event.query,'active'); break;
+    case 'query_completed': trace(`${String(event.provider || 'Search provider').replaceAll('_',' ')} complete`,`${event.results} unique public result(s) accepted.`,'success'); break;
+    case 'query_failed': trace(`${String(event.provider || 'Search provider').replaceAll('_',' ')} failed`,`${event.category || 'error'} • ${event.error}`,'warning'); break;
     case 'url_discovered': trace(`Source discovered #${event.index}`,`${event.title || 'Untitled'} • ${event.url}`,'success'); break;
     case 'discovery_completed': trace('Discovery complete',`${event.discovered} unique public source(s) accepted.`,'success'); break;
-    case 'discovery_stopped': trace('Discovery stopped early',`${event.reason} Completed ${event.completed}/${event.total} query variation(s).`,'warning'); break;
+    case 'discovery_stopped': trace('Discovery target reached',`${event.reason} Checked ${event.completed}/${event.total} provider(s).`,'success'); break;
     case 'source_started': transition(SearchState.SCRAPING); trace(`Opening source ${event.index}/${event.total}`,event.url,'active'); break;
     case 'source_completed': {
       const found = `${(event.phones||[]).length} phone(s), ${(event.emails||[]).length} email(s)`;
       const fallback = event.fallback_reason ? ` • fallback after: ${event.fallback_reason}` : '';
-      trace(`Source ${event.index}/${event.total} processed`,`${event.method} • relevance ${event.relevance} • ${found} • ${event.duration_seconds}s${fallback}`,'success');
+      trace(`Source ${event.index}/${event.total} processed`,`${event.method} • relevance ${event.relevance} • identity ${event.identity_match === false ? 'not confirmed' : 'matched'} • ${found} • ${event.duration_seconds}s${fallback}`,'success');
       addLiveContacts(event.phones || [], event.emails || []);
-      (event.phones||[]).forEach(p => trace('Phone extracted from source',`${p.number}${p.extension ? ` ext ${p.extension}` : ''} • ${event.url}`,'success'));
+      (event.phones||[]).forEach(p => trace('Phone extracted from source',`${p.number}${p.extension ? ` ext ${p.extension}` : ''}${p.line_type ? ` • ${p.line_type}` : ''} • ${event.url}`,'success'));
       (event.emails||[]).forEach(e => trace('Email extracted from source',`${e} • ${event.url}`,'success'));
       break;
     }
@@ -391,7 +385,7 @@ function handleStreamEvent(event) {
 }
 async function streamSearch(searchPayload) {
   activeController = new AbortController();
-  const timeout = setTimeout(() => activeController.abort(), 185000);
+  const timeout = setTimeout(() => activeController.abort(), 70000);
   try {
     transition(SearchState.CONNECTING);
     trace('Streaming request sent','POST /api/search/stream','active');
@@ -471,18 +465,18 @@ function renderResult(result) {
     ['Relevant',result.relevant_count ?? 0],
     ['Duration',`${result.duration_seconds ?? 0}s`]
   ].map(([label,value]) => `<div class="metric"><div class="metric-value">${esc(value)}</div><div class="metric-label">${esc(label)}</div></div>`).join('');
-  const phoneHtml = phones.length ? phones.map(x => `<span class="item">${esc(x.number)}${x.extension ? ` ext ${esc(x.extension)}` : ''}</span>`).join('') : '<span class="item">No phone numbers extracted</span>';
+  const phoneHtml = phones.length ? phones.map(x => `<span class="item">${esc(x.number)}${x.extension ? ` ext ${esc(x.extension)}` : ''}${x.line_type ? ` · ${esc(x.line_type)}` : ''}${x.region ? ` · ${esc(x.region)}` : ''}</span>`).join('') : '<span class="item">No phone numbers extracted</span>';
   const emailHtml = emails.length ? emails.map(x => `<span class="item">${esc(x.email)} · ${esc(x.domain_status)}</span>`).join('') : '<span class="item">No emails extracted</span>';
   const identity = result.identity || {};
-  const identityValues = [['Core query',identity.query],['Company',identity.fields?.company],['Person / Owner',identity.fields?.person],['Known phone',identity.fields?.phone],['Known email',identity.fields?.email]].filter(([,value]) => value);
+  const identityValues = [['Universal query',identity.query],['Company',identity.fields?.company],['Person / Owner',identity.fields?.person],['Known phone',identity.fields?.phone],['Known email',identity.fields?.email]].filter(([,value]) => value);
   const identityHtml = identityValues.length ? identityValues.map(([label,value]) => `<span class="item"><strong>${esc(label)}:</strong> ${esc(value)}</span>`).join('') : '<span class="item">No identity details returned.</span>';
-  const sourceHtml = sources.length ? sources.map(s => { let sourceDomain = 'Unknown domain'; try { sourceDomain = new URL(s.url).hostname; } catch {} return `<div class="source-card"><div class="source-title">${esc(s.title || 'Untitled source')}</div><div class="source-meta">${esc(sourceDomain)}</div><div><a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.url)}</a></div><div class="source-meta">${esc(s.status)}${s.method ? ` · ${esc(s.method)}` : ''}${s.relevance !== undefined ? ` · relevance ${esc(s.relevance)}` : ''}${s.duration_seconds ? ` · ${esc(s.duration_seconds)}s` : ''}</div>${s.fallback_reason ? `<div class="source-meta">Fallback reason: ${esc(s.fallback_reason)}</div>` : ''}${s.error ? `<div class="source-error">${esc(classifySourceError(s.error))}: ${esc(s.error)}</div>` : ''}</div>`; }).join('') : '<div class="source-card">No public sources discovered.</div>';
+  const sourceHtml = sources.length ? sources.map(s => { let sourceDomain = 'Unknown domain'; try { sourceDomain = new URL(s.url).hostname; } catch {} return `<div class="source-card"><div class="source-title">${esc(s.title || 'Untitled source')}</div><div class="source-meta">${esc(sourceDomain)}${s.provider ? ` · ${esc(String(s.provider).replaceAll('_',' '))}` : ''}</div><div><a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.url)}</a></div><div class="source-meta">${esc(s.status)}${s.method ? ` · ${esc(s.method)}` : ''}${s.relevance !== undefined ? ` · relevance ${esc(s.relevance)}` : ''}${s.identity_match === false ? ' · identity not confirmed' : ''}${s.duration_seconds ? ` · ${esc(s.duration_seconds)}s` : ''}</div>${s.fallback_reason ? `<div class="source-meta">Fallback reason: ${esc(s.fallback_reason)}</div>` : ''}${s.error ? `<div class="source-error">${esc(classifySourceError(s.error))}: ${esc(s.error)}</div>` : ''}</div>`; }).join('') : '<div class="source-card">No public sources discovered.</div>';
   $('result-content').innerHTML = `
     <section class="result-section"><h3>Search Identity</h3><div class="result-body item-list">${identityHtml}</div></section>
     <section class="result-section"><h3>Phones</h3><div class="result-body item-list">${phoneHtml}</div></section>
     <section class="result-section"><h3>Emails</h3><div class="result-body item-list">${emailHtml}</div></section>
     <section class="result-section"><h3>Sources</h3><div class="result-body">${sourceHtml}</div></section>
-    <section class="result-section"><h3>Search Summary</h3><div class="result-body item-list"><span class="item">Status: ${esc(result.status || 'unknown')}</span><span class="item">Discovered: ${esc(result.discovered_count ?? 0)}</span><span class="item">Scraped: ${esc(result.scraped_count ?? 0)}</span><span class="item">Relevant: ${esc(result.relevant_count ?? 0)}</span><span class="item">Duration: ${esc(result.duration_seconds ?? '—')}s</span><span class="item">Proxy used: ${result.proxy_used ? 'Yes' : 'No'}</span></div></section>`;
+    <section class="result-section"><h3>Search Summary</h3><div class="result-body item-list"><span class="item">Status: ${esc(result.status || 'unknown')}</span><span class="item">Mode: ${esc(result.mode || 'general')}</span><span class="item">Discovered: ${esc(result.discovered_count ?? 0)}</span><span class="item">Scraped: ${esc(result.scraped_count ?? 0)}</span><span class="item">Relevant: ${esc(result.relevant_count ?? 0)}</span><span class="item">Duration: ${esc(result.duration_seconds ?? '—')}s</span><span class="item">Proxy used: ${result.proxy_used ? 'Yes' : 'No'}</span></div></section>`;
   $('raw-response').textContent = JSON.stringify(result,null,2);
   renderIssues(result);
 }
@@ -500,7 +494,7 @@ function renderIssues(result) {
   Object.entries(categories).forEach(([label,count]) => issues.push(`${count} source(s): ${label}.`));
   if (result.discovered_count === 0) issues.push('Discovery returned zero usable public URLs.');
   if (result.discovered_count > 0 && result.scraped_count === 0) issues.push('Sources were discovered, but none were successfully retrieved. Anti-bot blocks, rate limits, timeouts, or network restrictions are likely.');
-  if (result.scraped_count > 0 && !(result.phones||[]).length && !(result.emails||[]).length) issues.push('Pages were successfully retrieved, but no relevant phone/email contacts were extracted.');
+  if (result.mode !== 'general' && result.scraped_count > 0 && !(result.phones||[]).length && !(result.emails||[]).length) issues.push('Pages were successfully retrieved, but no relevant phone/email contacts were extracted.');
   const box = $('issue-box');
   if (!issues.length) { box.className='issue-box'; box.innerHTML=''; return; }
   box.className='issue-box show';
@@ -511,9 +505,10 @@ function resultState(result) {
   const failed = (result.sources||[]).filter(x => x.status !== 'scraped').length;
   if (contacts && failed) return ['Partial results',`Found ${contacts} contact item(s), but ${failed} source(s) could not be fully processed.`,'warning'];
   if (contacts) return ['Search complete',`Found ${contacts} contact item(s) from ${(result.sources||[]).length} checked source(s).`,'success'];
+  if (result.mode === 'general' && result.scraped_count > 0) return ['Search complete',`Found ${result.scraped_count} accessible public source(s) for this query.`,'success'];
   if (result.status === 'blocked') return ['Sources blocked',`Public sources were discovered but could not be successfully retrieved. See the live trace for the exact source errors.`,'warning'];
-  if (result.status === 'search_provider_unavailable') return ['Search provider unavailable','Public web search providers could not be reached. No conclusion was made about this company.','warning'];
-  if (result.status === 'no_results') return ['No public sources found','Try adding a company name, person, state, address, email, EIN, or another identifying value.','warning'];
+  if (result.status === 'search_provider_unavailable') return ['Search provider unavailable','Public web search providers could not be reached. No conclusion was made about this query.','warning'];
+  if (result.status === 'no_results') return ['No public sources found','Try adding a name, location, ZIP code, phone, email, business name, or more specific wording.','warning'];
   return ['No contacts extracted',`Sources were processed, but no relevant phone numbers or emails were extracted.`,'warning'];
 }
 function contactsState(result) {
@@ -521,6 +516,7 @@ function contactsState(result) {
   const failed = (result.sources||[]).some(source => source.status !== 'scraped');
   if (contacts && failed) return SearchState.PARTIAL_RESULT;
   if (contacts) return SearchState.SUCCESS;
+  if (result.mode === 'general' && result.scraped_count > 0) return SearchState.SUCCESS;
   if (result.status === 'search_provider_unavailable') return SearchState.NETWORK_ERROR;
   if (result.status === 'no_results' || !result.discovered_count) return SearchState.NO_RESULTS;
   return SearchState.NO_CONTACTS;
@@ -531,7 +527,7 @@ async function runSearch() {
   const searchPayload = payload();
   const values = [searchPayload.query, ...Object.values(searchPayload.fields)];
   if (!values.some(Boolean)) {
-    setStatus('Nothing to search','Enter at least one search value before starting.','error');
+    setStatus('Nothing to search','Enter anything in Universal Search before starting.','error');
     resetTrace();
     trace('Input validation failed','No searchable value was entered. No API request was sent.','error');
     return;
@@ -549,7 +545,7 @@ async function runSearch() {
   resetLiveContacts();
   startClock();
   trace('Search button clicked','User initiated Search & Enrich.','success');
-  trace('Frontend validation passed','At least one searchable identity value is present.','success');
+  trace('Frontend validation passed','A universal search query is present.','success');
   transition(SearchState.CHECKING_BACKEND);
   setStatus('Checking search engine','Confirming backend readiness before extraction.','working');
 
@@ -562,7 +558,7 @@ async function runSearch() {
     setStatus(title,copy,state);
   } catch (error) {
     const aborted = error?.name === 'AbortError';
-    const message = aborted ? 'The browser stopped waiting after the 185-second client safety limit.' : (error?.message || 'Unknown search error');
+    const message = aborted ? 'The browser stopped waiting after the 70-second client safety limit.' : (error?.message || 'Unknown search error');
     const status = Number(error?.status || 0);
     const kind = aborted || status === 504 ? SearchState.TIMEOUT : status === 502 || status === 503 ? SearchState.BACKEND_OFFLINE : status >= 500 ? SearchState.SERVER_ERROR : status ? SearchState.SERVER_ERROR : SearchState.NETWORK_ERROR;
     transition(kind);
@@ -585,7 +581,7 @@ document.querySelectorAll('input').forEach(input => {
 });
 $('clear').addEventListener('click',() => {
   if (searchActive) return;
-  ['q','company','person','phone','email','ein','state','address','proxy'].forEach(id => $(id).value='');
+  ['q','proxy'].forEach(id => $(id).value='');
   setStatus('Ready','Search fields cleared.','');
 });
 $('file').addEventListener('change',() => {

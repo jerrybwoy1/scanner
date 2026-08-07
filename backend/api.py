@@ -5,38 +5,64 @@ import ipaddress
 import json
 import os
 import re
+import shutil
 import socket
 import tempfile
 import time
 from html import unescape
 from html.parser import HTMLParser
 from pathlib import Path
-from typing import Any
-from urllib.parse import urlparse
+from typing import Any, Awaitable, Callable
+from urllib.parse import urljoin, urlparse, urlunparse
 
 import pandas as pd
 import phonenumbers
-from duckduckgo_search import DDGS
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
+from starlette.background import BackgroundTask
 
-MAX_URLS = 14
+MAX_URLS = 12
+DISCOVERY_TARGET = 5
 MAX_UPLOAD = 10 * 1024 * 1024
-DISCOVERY_TIMEOUT = 8
-SEARCH_PROVIDER_FAILURE_LIMIT = 2
-SOURCE_TIMEOUT = 40
-TARGET_SITES = (
-    "facebook.com", "linkedin.com/in", "truepeoplesearch.com", "bizapedia.com",
-    "opencorporates.com", "bbb.org", "chamberofcommerce.com", "manta.com",
-)
-EMAIL_RE = re.compile(r"(?i)(?<![\w.+-])[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,24}(?![\w.-])")
-PHONE_RE = re.compile(r"(?<!\d)(?:\+?1[\s.()/-]*)?(?:\(?[2-9]\d{2}\)?[\s.()/-]*)[2-9]\d{2}[\s.()/-]*\d{4}(?:\s*(?:x|ext\.?|extension)\s*\d{1,6})?(?!\d)", re.I)
+PROVIDER_TIMEOUT = 12
+STATIC_TIMEOUT = 10
+BROWSER_TIMEOUT = 16
+MAX_BROWSER_FALLBACKS = 2
+SEARCH_TIMEOUT = 60
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip() or "gemini-2.5-flash"
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
+TAVILY_API_KEY = os.getenv("TAVILY_API_KEY", "").strip()
 APP_ORIGIN = os.getenv("APP_ORIGIN", "https://scanner.jerrylang.workers.dev").rstrip("/")
 
-app = FastAPI(title="QikReach Live Enrichment API", version="1.1.0")
-app.add_middleware(CORSMiddleware, allow_origins=[APP_ORIGIN], allow_methods=["GET", "POST", "OPTIONS"], allow_headers=["content-type", "accept"])
+EMAIL_RE = re.compile(r"(?i)(?<![\w.+-])[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,24}(?![\w.-])")
+PHONE_RE = re.compile(
+    r"(?<!\d)(?:\+?1[\s.()/-]*)?(?:\(?[2-9]\d{2}\)?[\s.()/-]*)[2-9]\d{2}[\s.()/-]*\d{4}"
+    r"(?:\s*(?:x|ext\.?|extension)\s*\d{1,6})?(?!\d)",
+    re.I,
+)
+INTERNATIONAL_PHONE_RE = re.compile(r"(?<!\w)\+\d(?:[\s.()/-]*\d){7,14}(?!\w)")
+BUSINESS_HINT_RE = re.compile(
+    r"\b(?:llc|inc|incorporated|corp|corporation|company|co\.?|manufacturing|services|business|owner|contact|phone|email)\b",
+    re.I,
+)
+ZIP_RE = re.compile(r"(?<!\d)\d{5}(?:-\d{4})?(?!\d)")
+
+PROVIDER_STATE: dict[str, dict[str, Any]] = {
+    "gemini_google": {"status": "unknown" if GEMINI_API_KEY else "not_configured"},
+    "tavily": {"status": "unknown" if TAVILY_API_KEY else "not_configured"},
+    "ddgs_brave": {"status": "unknown"},
+    "ddgs_duckduckgo": {"status": "unknown"},
+}
+
+app = FastAPI(title="QikReach Live Enrichment API", version="1.2.0")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[APP_ORIGIN],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["content-type", "accept"],
+)
 
 
 class Fields(BaseModel):
@@ -83,6 +109,14 @@ def clean(value: Any) -> str:
     return "" if text.lower() in {"nan", "nat", "<na>"} else text
 
 
+def redact(value: Any) -> str:
+    text = clean(value)
+    for secret in (GEMINI_API_KEY, TAVILY_API_KEY):
+        if secret:
+            text = text.replace(secret, "[redacted]")
+    return re.sub(r"(?i)([?&](?:key|api_key|token)=)[^&\s]+", r"\1[redacted]", text)
+
+
 def validate_proxy(proxy: str) -> str:
     proxy = clean(proxy)
     if not proxy:
@@ -102,17 +136,26 @@ def is_public_url(value: str) -> bool:
         if host in {"localhost", "localhost.localdomain"} or host.endswith((".local", ".internal", ".localhost")):
             return False
         try:
-            address = ipaddress.ip_address(host)
-            return not (address.is_private or address.is_loopback or address.is_link_local or address.is_reserved or address.is_multicast)
+            addresses = [ipaddress.ip_address(host)]
         except ValueError:
-            records = socket.getaddrinfo(host, None, type=socket.SOCK_STREAM)
-            for record in records:
-                address = ipaddress.ip_address(record[4][0])
-                if address.is_private or address.is_loopback or address.is_link_local or address.is_reserved or address.is_multicast:
-                    return False
-            return True
+            addresses = [ipaddress.ip_address(record[4][0]) for record in socket.getaddrinfo(host, None, type=socket.SOCK_STREAM)]
+        return bool(addresses) and all(
+            not (
+                address.is_private
+                or address.is_loopback
+                or address.is_link_local
+                or address.is_reserved
+                or address.is_multicast
+            )
+            for address in addresses
+        )
     except Exception:
         return False
+
+
+def canonical_url(value: str) -> str:
+    parsed = urlparse(clean(value))
+    return urlunparse((parsed.scheme.lower(), parsed.netloc.lower(), parsed.path or "/", parsed.params, parsed.query, ""))
 
 
 def visible_text(html: str) -> str:
@@ -120,9 +163,21 @@ def visible_text(html: str) -> str:
     try:
         parser.feed(html)
         parser.close()
-        return "\n".join(parser.parts)[:30000]
+        return "\n".join(parser.parts)[:60_000]
     except Exception:
-        return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", html)).strip()[:30000]
+        return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", html)).strip()[:60_000]
+
+
+def extraction_surface(html: str, text: str) -> str:
+    decoded = unescape(html)
+    extras: list[str] = []
+    for match in re.finditer(r"(?is)\b(?:href|content|data-email|data-phone|value)\s*=\s*(['\"])(.*?)\1", decoded):
+        value = match.group(2).strip()
+        if value.lower().startswith(("mailto:", "tel:")) or EMAIL_RE.search(value) or PHONE_RE.search(value) or INTERNATIONAL_PHONE_RE.search(value):
+            extras.append(value.replace("mailto:", "").replace("tel:", ""))
+    for match in re.finditer(r"(?is)<script[^>]+type\s*=\s*(['\"])application/ld\+json\1[^>]*>(.*?)</script>", decoded):
+        extras.append(match.group(2))
+    return "\n".join((text, *extras))[:100_000]
 
 
 def normalize_phone(raw: str) -> dict[str, str] | None:
@@ -130,8 +185,25 @@ def normalize_phone(raw: str) -> dict[str, str] | None:
         parsed = phonenumbers.parse(raw, "US")
         if not phonenumbers.is_valid_number(parsed):
             return None
-        extension = parsed.extension or ""
-        return {"number": phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164), "extension": extension}
+        phone_types = {
+            phonenumbers.PhoneNumberType.MOBILE: "mobile",
+            phonenumbers.PhoneNumberType.FIXED_LINE: "landline",
+            phonenumbers.PhoneNumberType.FIXED_LINE_OR_MOBILE: "mobile or landline",
+            phonenumbers.PhoneNumberType.VOIP: "voip",
+            phonenumbers.PhoneNumberType.TOLL_FREE: "toll-free",
+            phonenumbers.PhoneNumberType.PREMIUM_RATE: "premium-rate",
+            phonenumbers.PhoneNumberType.SHARED_COST: "shared-cost",
+            phonenumbers.PhoneNumberType.PERSONAL_NUMBER: "personal-number",
+            phonenumbers.PhoneNumberType.PAGER: "pager",
+            phonenumbers.PhoneNumberType.UAN: "uan",
+            phonenumbers.PhoneNumberType.VOICEMAIL: "voicemail",
+        }
+        return {
+            "number": phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164),
+            "extension": parsed.extension or "",
+            "line_type": phone_types.get(phonenumbers.number_type(parsed), "unknown"),
+            "region": phonenumbers.region_code_for_number(parsed) or "",
+        }
     except Exception:
         return None
 
@@ -139,36 +211,53 @@ def normalize_phone(raw: str) -> dict[str, str] | None:
 def extract_contacts(text: str) -> tuple[list[dict[str, str]], list[str]]:
     deobfuscated = re.sub(r"(?i)\s*[\[(]\s*at\s*[\])]\s*", "@", text)
     deobfuscated = re.sub(r"(?i)\s*[\[(]\s*dot\s*[\])]\s*", ".", deobfuscated)
-    emails = sorted({x.strip(".,;:()[]{}<>\"'").lower() for x in EMAIL_RE.findall(deobfuscated)})[:25]
+    emails = sorted({match.strip(".,;:()[]{}<>\"'").lower() for match in EMAIL_RE.findall(deobfuscated)})[:25]
     phones: list[dict[str, str]] = []
     seen: set[tuple[str, str]] = set()
-    for raw in PHONE_RE.findall(text):
-        item = normalize_phone(raw)
-        if not item:
+    for match in phonenumbers.PhoneNumberMatcher(text, "US"):
+        phone = normalize_phone(match.raw_string)
+        if not phone:
             continue
-        key = (item["number"], item["extension"])
+        key = (phone["number"], phone["extension"])
         if key not in seen:
             seen.add(key)
-            phones.append(item)
+            phones.append(phone)
     return phones[:25], emails
 
 
 def identity(request: SearchRequest) -> list[str]:
-    values = [request.query, request.fields.company, request.fields.person, request.fields.phone, request.fields.email, request.fields.ein, request.fields.address, request.fields.state]
+    values = [
+        request.query,
+        request.fields.company,
+        request.fields.person,
+        request.fields.phone,
+        request.fields.email,
+        request.fields.ein,
+        request.fields.address,
+        request.fields.state,
+    ]
     output: list[str] = []
     seen: set[str] = set()
     for value in values:
         value = clean(value)
-        key = value.lower()
+        key = value.casefold()
         if value and key not in seen:
             seen.add(key)
             output.append(value)
     return output
 
 
-def discovery_queries(terms: list[str]) -> list[str]:
-    core = " ".join(f'"{term}"' if " " in term else term for term in terms[:5])
-    return [core, f"{core} phone email contact", *(f"{core} site:{site}" for site in TARGET_SITES)]
+def search_subject(terms: list[str]) -> str:
+    return " ".join(terms)[:600]
+
+
+def search_mode(request: SearchRequest) -> str:
+    if any(clean(value) for value in request.fields.model_dump().values()):
+        return "contact"
+    query = clean(request.query)
+    if EMAIL_RE.search(query) or PHONE_RE.search(query) or INTERNATIONAL_PHONE_RE.search(query) or ZIP_RE.search(query) or BUSINESS_HINT_RE.search(query):
+        return "contact"
+    return "general"
 
 
 async def emit_progress(emit: Any, event_type: str, **payload: Any) -> None:
@@ -176,145 +265,301 @@ async def emit_progress(emit: Any, event_type: str, **payload: Any) -> None:
         await emit({"type": event_type, "at": round(time.time(), 3), **payload})
 
 
-def search_one_query(query: str, proxy: str) -> list[dict[str, str]]:
-    kwargs: dict[str, Any] = {"timeout": 6}
+def mark_provider(name: str, status: str, error: str = "") -> None:
+    state = PROVIDER_STATE.setdefault(name, {})
+    state["status"] = status
+    state["checked_at"] = round(time.time(), 3)
+    if error:
+        state["last_error"] = redact(error)[:300]
+    else:
+        state.pop("last_error", None)
+
+
+def provider_chain() -> list[tuple[str, Callable[..., Awaitable[list[dict[str, str]]]] | None, str]]:
+    chain: list[tuple[str, Callable[..., Awaitable[list[dict[str, str]]]] | None, str]] = []
+    if GEMINI_API_KEY:
+        chain.append(("gemini_google", gemini_search, ""))
+    if TAVILY_API_KEY:
+        chain.append(("tavily", tavily_search, ""))
+    chain.extend((("ddgs_brave", None, "brave"), ("ddgs_duckduckgo", None, "duckduckgo")))
+    return chain
+
+
+async def gemini_search(query: str, session: Any, _: str) -> list[dict[str, str]]:
+    endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
+    prompt = (
+        "Search the public web for the user's exact query and identify the most relevant source pages. "
+        "The query may be anything: a business, person with a location or ZIP code, phone number, email, product, or general topic. "
+        "For businesses or people, prioritize official websites, contact/about pages, public business profiles, and pages that may contain "
+        "publicly posted contact information. Disambiguate names using every location or identity clue in the query. "
+        "For general topics, return authoritative relevant sources. Do not invent facts or contact details.\n\n"
+        f"User query: {query}"
+    )
+    body = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "tools": [{"google_search": {}}],
+        "generationConfig": {"temperature": 0, "maxOutputTokens": 1200},
+    }
+    async with session.post(endpoint, params={"key": GEMINI_API_KEY}, json=body) as response:
+        data = await response.json(content_type=None)
+        if response.status >= 400:
+            message = data.get("error", {}).get("message") if isinstance(data, dict) else clean(data)
+            raise RuntimeError(f"Gemini HTTP {response.status}: {message or 'request failed'}")
+    candidates = data.get("candidates") or []
+    if not candidates:
+        return []
+    candidate = candidates[0]
+    answer = " ".join(clean(part.get("text")) for part in candidate.get("content", {}).get("parts", []) if isinstance(part, dict))
+    grounding = candidate.get("groundingMetadata") or {}
+    results: list[dict[str, str]] = []
+    for chunk in grounding.get("groundingChunks") or []:
+        web = chunk.get("web") if isinstance(chunk, dict) else None
+        if not web:
+            continue
+        url = clean(web.get("uri"))
+        if url:
+            results.append({"url": url, "title": clean(web.get("title")), "snippet": answer[:1200]})
+    return results
+
+
+async def tavily_search(query: str, session: Any, _: str) -> list[dict[str, str]]:
+    body = {
+        "query": query,
+        "search_depth": "basic",
+        "include_answer": False,
+        "include_raw_content": False,
+        "max_results": 8,
+    }
+    headers = {"Authorization": f"Bearer {TAVILY_API_KEY}", "Content-Type": "application/json"}
+    async with session.post("https://api.tavily.com/search", headers=headers, json=body) as response:
+        data = await response.json(content_type=None)
+        if response.status >= 400:
+            message = data.get("detail") or data.get("error") if isinstance(data, dict) else clean(data)
+            raise RuntimeError(f"Tavily HTTP {response.status}: {message or 'request failed'}")
+    return [
+        {
+            "url": clean(item.get("url")),
+            "title": clean(item.get("title")),
+            "snippet": clean(item.get("content")),
+        }
+        for item in data.get("results", [])
+        if isinstance(item, dict) and clean(item.get("url"))
+    ]
+
+
+def ddgs_search(query: str, proxy: str, backend: str) -> list[dict[str, str]]:
+    from ddgs import DDGS
+
+    kwargs: dict[str, Any] = {"timeout": 5}
     if proxy:
         kwargs["proxy"] = proxy
-    with DDGS(**kwargs) as client:
-        return list(client.text(query, max_results=3))
+    results = DDGS(**kwargs).text(query, max_results=6, backend=backend)
+    return [
+        {
+            "url": clean(item.get("href") or item.get("url")),
+            "title": clean(item.get("title")),
+            "snippet": clean(item.get("body")),
+        }
+        for item in results
+        if isinstance(item, dict)
+    ]
 
 
-async def discover(queries: list[str], proxy: str, emit: Any = None) -> tuple[list[dict[str, str]], list[dict[str, Any]]]:
+async def discover(subject: str, proxy: str, emit: Any = None) -> tuple[list[dict[str, str]], list[dict[str, Any]]]:
+    import aiohttp
+
+    providers = provider_chain()
     urls: list[dict[str, str]] = []
     reports: list[dict[str, Any]] = []
     seen: set[str] = set()
-    provider_failures = 0
-
-    await emit_progress(emit, "discovery_started", query_count=len(queries))
-    for index, query in enumerate(queries, start=1):
-        await emit_progress(emit, "query_started", index=index, total=len(queries), query=query)
-        try:
-            results = await asyncio.wait_for(asyncio.to_thread(search_one_query, query, proxy), timeout=DISCOVERY_TIMEOUT)
-            provider_failures = 0
-            reports.append({"query": query, "status": "complete", "results": len(results)})
-            await emit_progress(emit, "query_completed", index=index, total=len(queries), query=query, results=len(results))
-            for result in results:
-                url = clean(result.get("href") or result.get("url"))
-                if not url or url in seen:
-                    continue
-                public = await asyncio.to_thread(is_public_url, url)
-                if not public:
-                    continue
-                seen.add(url)
-                item = {"url": url, "title": clean(result.get("title")), "snippet": clean(result.get("body"))}
-                urls.append(item)
-                await emit_progress(emit, "url_discovered", index=len(urls), url=url, title=item["title"], query=query)
-                if len(urls) >= MAX_URLS:
-                    await emit_progress(emit, "discovery_completed", discovered=len(urls), query_reports=len(reports))
-                    return urls, reports
-        except asyncio.TimeoutError:
-            message = f"Discovery query timed out after {DISCOVERY_TIMEOUT}s"
-            reports.append({"query": query, "status": "error", "error": message})
-            await emit_progress(emit, "query_failed", index=index, total=len(queries), query=query, error=message, category="timeout")
-            provider_failures += 1
-        except Exception as exc:
-            message = str(exc)
-            message_lower = message.lower()
-            category = "timeout" if "timeout" in message_lower else "rate_limit" if "rate" in message_lower or "429" in message else "search_provider_error"
-            reports.append({"query": query, "status": "error", "error": message})
-            await emit_progress(emit, "query_failed", index=index, total=len(queries), query=query, error=message, category=category)
-            provider_failures += 1
-
-        if provider_failures >= SEARCH_PROVIDER_FAILURE_LIMIT:
-            await emit_progress(emit, "discovery_stopped", completed=index, total=len(queries), reason="Search provider repeatedly timed out or failed; remaining query variations were skipped.")
-            break
-
+    timeout = aiohttp.ClientTimeout(total=PROVIDER_TIMEOUT)
+    await emit_progress(emit, "discovery_started", query_count=len(providers))
+    async with aiohttp.ClientSession(timeout=timeout, headers={"User-Agent": "QikReach/1.2"}) as session:
+        for index, (name, async_provider, backend) in enumerate(providers, start=1):
+            await emit_progress(emit, "query_started", index=index, total=len(providers), query=subject, provider=name)
+            try:
+                if async_provider:
+                    results = await asyncio.wait_for(async_provider(subject, session, backend), timeout=PROVIDER_TIMEOUT)
+                else:
+                    results = await asyncio.wait_for(
+                        asyncio.to_thread(ddgs_search, subject, proxy, backend), timeout=PROVIDER_TIMEOUT
+                    )
+                mark_provider(name, "online")
+                accepted = 0
+                for result in results:
+                    url = clean(result.get("url"))
+                    key = canonical_url(url)
+                    if not url or not key or key in seen or not await asyncio.to_thread(is_public_url, url):
+                        continue
+                    seen.add(key)
+                    item = {
+                        "url": url,
+                        "title": clean(result.get("title")),
+                        "snippet": clean(result.get("snippet")),
+                        "provider": name,
+                    }
+                    urls.append(item)
+                    accepted += 1
+                    await emit_progress(
+                        emit,
+                        "url_discovered",
+                        index=len(urls),
+                        url=url,
+                        title=item["title"],
+                        query=subject,
+                        provider=name,
+                    )
+                    if len(urls) >= MAX_URLS:
+                        break
+                reports.append({"query": subject, "provider": name, "status": "complete", "results": accepted})
+                await emit_progress(
+                    emit,
+                    "query_completed",
+                    index=index,
+                    total=len(providers),
+                    query=subject,
+                    provider=name,
+                    results=accepted,
+                )
+                if len(urls) >= DISCOVERY_TARGET or len(urls) >= MAX_URLS:
+                    await emit_progress(
+                        emit,
+                        "discovery_stopped",
+                        completed=index,
+                        total=len(providers),
+                        reason=f"{name} returned enough unique public sources; slower fallbacks were skipped.",
+                    )
+                    break
+            except asyncio.TimeoutError:
+                message = f"{name} timed out after {PROVIDER_TIMEOUT}s"
+                mark_provider(name, "offline", message)
+                reports.append({"query": subject, "provider": name, "status": "error", "error": message})
+                await emit_progress(
+                    emit,
+                    "query_failed",
+                    index=index,
+                    total=len(providers),
+                    query=subject,
+                    provider=name,
+                    category="timeout",
+                    error=message,
+                )
+            except Exception as exc:
+                message = redact(exc)
+                lowered = message.lower()
+                category = "rate_limit" if "429" in lowered or "rate" in lowered or "quota" in lowered else "search_provider_error"
+                mark_provider(name, "offline", message)
+                reports.append({"query": subject, "provider": name, "status": "error", "error": message})
+                await emit_progress(
+                    emit,
+                    "query_failed",
+                    index=index,
+                    total=len(providers),
+                    query=subject,
+                    provider=name,
+                    category=category,
+                    error=message,
+                )
     await emit_progress(emit, "discovery_completed", discovered=len(urls), query_reports=len(reports))
     return urls, reports
 
 
-async def static_fetch(url: str, proxy: str) -> tuple[str, str]:
-    import aiohttp
-    from aiohttp_socks import ProxyConnector
-
-    connector = ProxyConnector.from_url(proxy) if proxy.startswith(("socks4://", "socks5://")) else aiohttp.TCPConnector(ssl=False)
-    timeout = aiohttp.ClientTimeout(total=22)
-    kwargs: dict[str, Any] = {"allow_redirects": False, "headers": {"User-Agent": "Mozilla/5.0 QikReach/1.1"}}
+async def static_fetch(session: Any, url: str, proxy: str) -> tuple[str, str, str]:
+    kwargs: dict[str, Any] = {
+        "allow_redirects": False,
+        "headers": {
+            "User-Agent": "Mozilla/5.0 (compatible; QikReach/1.2; +https://scanner.jerrylang.workers.dev/)"
+        },
+    }
     if proxy.startswith(("http://", "https://")):
         kwargs["proxy"] = proxy
-    async with aiohttp.ClientSession(connector=connector, timeout=timeout) as session:
-        current = url
-        for _ in range(5):
-            if not await asyncio.to_thread(is_public_url, current):
-                raise RuntimeError("Unsafe or private destination blocked")
-            async with session.get(current, **kwargs) as response:
-                if response.status in {301, 302, 303, 307, 308}:
-                    location = response.headers.get("location", "")
-                    current = str(response.url.join(aiohttp.client_reqrep.URL(location)))
-                    continue
-                if response.status >= 400:
-                    raise RuntimeError(f"HTTP {response.status}")
-                content_type = response.headers.get("content-type", "")
-                if "text" not in content_type and "html" not in content_type and "json" not in content_type:
-                    raise RuntimeError("Unsupported content type")
-                data = await response.content.read(1_500_000)
-                return visible_text(data.decode(response.charset or "utf-8", errors="replace")), "static"
-        raise RuntimeError("Too many redirects")
-
-
-async def browser_fetch(url: str, proxy: str) -> tuple[str, str, str]:
-    static_error = ""
-    try:
-        text, method = await static_fetch(url, proxy)
-        if text:
-            return text, method, ""
-    except Exception as exc:
-        static_error = str(exc)
-
-    try:
-        from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig, ProxyConfig
-        browser_args: dict[str, Any] = {"headless": True, "enable_stealth": True}
-        if proxy:
-            browser_args["proxy_config"] = ProxyConfig.from_string(proxy)
-        run = CrawlerRunConfig(wait_until="domcontentloaded", page_timeout=22000, bypass_cache=True, magic=True)
-        async with AsyncWebCrawler(config=BrowserConfig(**browser_args)) as crawler:
-            result = await crawler.arun(url=url, config=run)
-            if result.success:
-                text = clean(getattr(result, "markdown", "")) or visible_text(clean(getattr(result, "html", "")))
-                if text:
-                    return text[:30000], "crawl4ai-chromium", static_error
-            browser_error = clean(getattr(result, "error_message", "")) or "Crawler returned no usable page content"
-    except Exception as exc:
-        browser_error = str(exc)
-
-    combined = "; ".join(x for x in (static_error, browser_error) if x)
-    raise RuntimeError(combined or "Source could not be retrieved")
+    current = url
+    for _ in range(5):
+        if not await asyncio.to_thread(is_public_url, current):
+            raise RuntimeError("Unsafe or private destination blocked")
+        async with session.get(current, **kwargs) as response:
+            if response.status in {301, 302, 303, 307, 308}:
+                location = response.headers.get("location", "")
+                if not location:
+                    raise RuntimeError(f"HTTP {response.status} redirect had no destination")
+                current = urljoin(str(response.url), location)
+                continue
+            if response.status >= 400:
+                raise RuntimeError(f"HTTP {response.status}")
+            content_type = response.headers.get("content-type", "").lower()
+            if not any(kind in content_type for kind in ("text", "html", "json", "xml")):
+                raise RuntimeError("Unsupported content type")
+            data = bytearray()
+            async for chunk in response.content.iter_chunked(65_536):
+                remaining = 1_500_000 - len(data)
+                if remaining <= 0:
+                    break
+                data.extend(chunk[:remaining])
+                if len(data) >= 1_500_000:
+                    break
+            html = data.decode(response.charset or "utf-8", errors="replace")
+            text = visible_text(html)
+            if len(text) < 120:
+                raise RuntimeError("Static response contained too little readable content")
+            return html, text, "static"
+    raise RuntimeError("Too many redirects")
 
 
 def relevance(text: str, terms: list[str]) -> int:
-    haystack = re.sub(r"[^a-z0-9]+", " ", text.lower())
+    haystack = re.sub(r"[^a-z0-9@.+-]+", " ", text.casefold())
     score = 0
+    tokens_seen: set[str] = set()
     for term in terms:
-        normalized = re.sub(r"[^a-z0-9]+", " ", term.lower()).strip()
-        if len(normalized) >= 4 and normalized in haystack:
-            score += 2
-        else:
-            tokens = [x for x in normalized.split() if len(x) >= 4]
-            score += min(1, sum(1 for token in tokens if token in haystack))
-    return score
+        normalized = re.sub(r"[^a-z0-9@.+-]+", " ", term.casefold()).strip()
+        if not normalized:
+            continue
+        if normalized in haystack:
+            score += 3
+        for token in normalized.split():
+            if token in tokens_seen or (len(token) < 3 and not any(character.isdigit() for character in token)):
+                continue
+            tokens_seen.add(token)
+            if token in haystack:
+                score += 1
+    return min(score, 12)
 
 
-async def verify_domains(emails: list[str]) -> list[dict[str, str]]:
-    import dns.resolver
+def identity_constraints_met(text: str, terms: list[str]) -> bool:
+    folded = text.casefold()
+    digits = re.sub(r"\D", "", text)
+    required_zips = {value for term in terms for value in ZIP_RE.findall(term)}
+    required_emails = {value.casefold() for term in terms for value in EMAIL_RE.findall(term)}
+    required_phones: set[str] = set()
+    for term in terms:
+        for match in phonenumbers.PhoneNumberMatcher(term, "US"):
+            normalized = normalize_phone(match.raw_string)
+            if normalized:
+                required_phones.add(re.sub(r"\D", "", normalized["number"])[-10:])
+    return (
+        all(value.casefold() in folded for value in required_zips)
+        and all(value in folded for value in required_emails)
+        and all(value in digits for value in required_phones)
+    )
 
-    def check(email: str) -> dict[str, str]:
-        try:
-            dns.resolver.resolve(email.rsplit("@", 1)[1], "MX", lifetime=3)
-            return {"email": email, "domain_status": "mx_found"}
-        except Exception:
-            return {"email": email, "domain_status": "no_mx_or_dns_error"}
 
-    return await asyncio.to_thread(lambda: [check(email) for email in emails])
+def source_result(item: dict[str, str], html: str, text: str, method: str, terms: list[str], mode: str, duration: float, fallback_reason: str = "") -> dict[str, Any]:
+    combined = "\n".join((item.get("title", ""), item.get("snippet", ""), text))
+    score = relevance(combined, terms)
+    identity_match = identity_constraints_met(combined, terms)
+    phones, emails = extract_contacts(extraction_surface(html, text)) if mode == "contact" and score >= 2 and identity_match else ([], [])
+    result: dict[str, Any] = {
+        **item,
+        "status": "scraped",
+        "method": method,
+        "relevance": score,
+        "identity_match": identity_match,
+        "phones": phones,
+        "emails": emails,
+        "duration_seconds": round(duration, 2),
+    }
+    if fallback_reason:
+        result["fallback_reason"] = fallback_reason
+    return result
 
 
 def error_category(message: str) -> str:
@@ -334,70 +579,189 @@ def error_category(message: str) -> str:
     return "source_error"
 
 
+async def emit_source_completed(emit: Any, position: int, total: int, source: dict[str, Any]) -> None:
+    await emit_progress(
+        emit,
+        "source_completed",
+        index=position,
+        total=total,
+        url=source["url"],
+        method=source["method"],
+        relevance=source["relevance"],
+        identity_match=source["identity_match"],
+        phones=source["phones"],
+        emails=source["emails"],
+        fallback_reason=source.get("fallback_reason", ""),
+        duration_seconds=source["duration_seconds"],
+    )
+
+
+async def scrape_sources(discovered: list[dict[str, str]], terms: list[str], mode: str, proxy: str, emit: Any) -> list[dict[str, Any]]:
+    import aiohttp
+    from aiohttp_socks import ProxyConnector
+
+    semaphore = asyncio.Semaphore(5)
+    connector = ProxyConnector.from_url(proxy) if proxy.startswith(("socks4://", "socks5://")) else aiohttp.TCPConnector(ssl=False)
+    timeout = aiohttp.ClientTimeout(total=STATIC_TIMEOUT)
+    sources: list[dict[str, Any] | None] = [None] * len(discovered)
+    pending: list[tuple[int, dict[str, str], str, float]] = []
+
+    async with aiohttp.ClientSession(connector=connector, timeout=timeout) as session:
+        async def scrape_static(position: int, item: dict[str, str]) -> None:
+            async with semaphore:
+                await emit_progress(emit, "source_started", index=position, total=len(discovered), url=item["url"], title=item["title"])
+                started = time.perf_counter()
+                try:
+                    html, text, method = await asyncio.wait_for(static_fetch(session, item["url"], proxy), timeout=STATIC_TIMEOUT)
+                    source = source_result(item, html, text, method, terms, mode, time.perf_counter() - started)
+                    sources[position - 1] = source
+                    await emit_source_completed(emit, position, len(discovered), source)
+                except Exception as exc:
+                    pending.append((position, item, redact(exc), started))
+
+        await asyncio.gather(*(scrape_static(index, item) for index, item in enumerate(discovered, start=1)))
+
+    browser_candidates = sorted(pending, key=lambda entry: relevance("\n".join((entry[1].get("title", ""), entry[1].get("snippet", ""))), terms), reverse=True)
+    selected = browser_candidates[:MAX_BROWSER_FALLBACKS]
+    skipped = browser_candidates[MAX_BROWSER_FALLBACKS:]
+
+    if selected:
+        try:
+            from crawl4ai import AsyncWebCrawler, BrowserConfig, CacheMode, CrawlerRunConfig, ProxyConfig
+
+            browser_args: dict[str, Any] = {"headless": True, "enable_stealth": True}
+            if proxy:
+                browser_args["proxy_config"] = ProxyConfig.from_string(proxy)
+            run_config = CrawlerRunConfig(
+                wait_until="domcontentloaded",
+                page_timeout=12_000,
+                cache_mode=CacheMode.ENABLED,
+                magic=False,
+            )
+            async with AsyncWebCrawler(config=BrowserConfig(**browser_args)) as crawler:
+                for position, item, static_error, started in selected:
+                    try:
+                        result = await asyncio.wait_for(crawler.arun(url=item["url"], config=run_config), timeout=BROWSER_TIMEOUT)
+                        if not result.success:
+                            raise RuntimeError(clean(getattr(result, "error_message", "")) or "Crawler returned no usable page content")
+                        html = clean(getattr(result, "html", ""))
+                        markdown = getattr(result, "markdown", "")
+                        text = clean(getattr(markdown, "raw_markdown", markdown)) or visible_text(html)
+                        if not text:
+                            raise RuntimeError("Crawler returned no readable content")
+                        source = source_result(
+                            item,
+                            html,
+                            text,
+                            "crawl4ai-chromium",
+                            terms,
+                            mode,
+                            time.perf_counter() - started,
+                            static_error,
+                        )
+                        sources[position - 1] = source
+                        await emit_source_completed(emit, position, len(discovered), source)
+                    except Exception as exc:
+                        message = "; ".join(value for value in (static_error, redact(exc)) if value)
+                        category = error_category(message)
+                        sources[position - 1] = {
+                            **item,
+                            "status": "blocked_or_failed",
+                            "error": message,
+                            "error_category": category,
+                            "phones": [],
+                            "emails": [],
+                        }
+                        await emit_progress(
+                            emit,
+                            "source_failed",
+                            index=position,
+                            total=len(discovered),
+                            url=item["url"],
+                            error=message,
+                            category=category,
+                        )
+        except Exception as exc:
+            browser_error = redact(exc)
+            for position, item, static_error, _ in selected:
+                message = "; ".join(value for value in (static_error, browser_error) if value)
+                category = error_category(message)
+                sources[position - 1] = {
+                    **item,
+                    "status": "blocked_or_failed",
+                    "error": message,
+                    "error_category": category,
+                    "phones": [],
+                    "emails": [],
+                }
+                await emit_progress(emit, "source_failed", index=position, total=len(discovered), url=item["url"], error=message, category=category)
+
+    for position, item, static_error, _ in skipped:
+        message = f"{static_error}; browser fallback skipped to keep the search within its time budget"
+        category = error_category(message)
+        sources[position - 1] = {
+            **item,
+            "status": "blocked_or_failed",
+            "error": message,
+            "error_category": category,
+            "phones": [],
+            "emails": [],
+        }
+        await emit_progress(emit, "source_failed", index=position, total=len(discovered), url=item["url"], error=message, category=category)
+
+    return [source for source in sources if source is not None]
+
+
+async def verify_domains(emails: list[str]) -> list[dict[str, str]]:
+    import dns.resolver
+
+    semaphore = asyncio.Semaphore(5)
+
+    def check(email: str) -> dict[str, str]:
+        try:
+            dns.resolver.resolve(email.rsplit("@", 1)[1], "MX", lifetime=3)
+            return {"email": email, "domain_status": "mx_found"}
+        except Exception:
+            return {"email": email, "domain_status": "no_mx_or_dns_error"}
+
+    async def limited(email: str) -> dict[str, str]:
+        async with semaphore:
+            return await asyncio.to_thread(check, email)
+
+    return list(await asyncio.gather(*(limited(email) for email in emails)))
+
+
 async def run_search(request: SearchRequest, emit: Any = None) -> dict[str, Any]:
     started = time.perf_counter()
     await emit_progress(emit, "search_started")
     terms = identity(request)
     if not terms:
-        raise ValueError("Enter a name, company, phone, email, EIN, address, state, or natural-language query")
+        raise ValueError("Enter anything to search")
     proxy = validate_proxy(request.proxy)
-    queries = discovery_queries(terms)
-    await emit_progress(emit, "input_validated", terms=terms, verify_email_domains=request.verify_email_domains, proxy_used=bool(proxy))
-    await emit_progress(emit, "queries_prepared", count=len(queries), queries=queries)
-    discovered, query_reports = await discover(queries, proxy, emit)
-    semaphore = asyncio.Semaphore(3)
+    subject = search_subject(terms)
+    mode = search_mode(request)
+    await emit_progress(
+        emit,
+        "input_validated",
+        terms=terms,
+        mode=mode,
+        verify_email_domains=request.verify_email_domains,
+        proxy_used=bool(proxy),
+    )
+    await emit_progress(emit, "queries_prepared", count=1, queries=[subject], mode=mode)
+    discovered, query_reports = await discover(subject, proxy, emit)
+    sources = await scrape_sources(discovered, terms, mode, proxy, emit) if discovered else []
 
-    async def scrape(position: int, item: dict[str, str]) -> dict[str, Any]:
-        async with semaphore:
-            await emit_progress(emit, "source_started", index=position, total=len(discovered), url=item["url"], title=item["title"])
-            source_started = time.perf_counter()
-            try:
-                text, method, fallback_reason = await asyncio.wait_for(browser_fetch(item["url"], proxy), timeout=SOURCE_TIMEOUT)
-                score = relevance("\n".join((item["title"], item["snippet"], text)), terms)
-                phones, emails = extract_contacts(text) if score >= 2 else ([], [])
-                source = {
-                    **item,
-                    "status": "scraped",
-                    "method": method,
-                    "relevance": score,
-                    "phones": phones,
-                    "emails": emails,
-                    "duration_seconds": round(time.perf_counter() - source_started, 2),
-                }
-                if fallback_reason:
-                    source["fallback_reason"] = fallback_reason
-                await emit_progress(
-                    emit,
-                    "source_completed",
-                    index=position,
-                    total=len(discovered),
-                    url=item["url"],
-                    method=method,
-                    relevance=score,
-                    phones=phones,
-                    emails=emails,
-                    fallback_reason=fallback_reason,
-                    duration_seconds=source["duration_seconds"],
-                )
-                return source
-            except asyncio.TimeoutError:
-                message = f"Source exceeded {SOURCE_TIMEOUT}s safety limit"
-            except Exception as exc:
-                message = str(exc)
-            category = error_category(message)
-            await emit_progress(emit, "source_failed", index=position, total=len(discovered), url=item["url"], error=message, category=category)
-            return {**item, "status": "blocked_or_failed", "error": message, "error_category": category, "phones": [], "emails": []}
-
-    sources = await asyncio.gather(*(scrape(index, item) for index, item in enumerate(discovered, start=1)))
     phone_map: dict[tuple[str, str], dict[str, str]] = {}
     email_set: set[str] = set()
     for source in sources:
-        for phone in source["phones"]:
+        for phone in source.get("phones", []):
             phone_map[(phone["number"], phone["extension"])] = phone
-        email_set.update(source["emails"])
+        email_set.update(source.get("emails", []))
 
     emails = sorted(email_set)
-    await emit_progress(emit, "extraction_completed", phones=len(phone_map), emails=len(emails), scraped=sum(1 for x in sources if x["status"] == "scraped"))
+    scraped_count = sum(1 for source in sources if source["status"] == "scraped")
+    await emit_progress(emit, "extraction_completed", phones=len(phone_map), emails=len(emails), scraped=scraped_count)
     if request.verify_email_domains and emails:
         await emit_progress(emit, "verification_started", emails=len(emails))
         email_records = await verify_domains(emails)
@@ -407,8 +771,20 @@ async def run_search(request: SearchRequest, emit: Any = None) -> dict[str, Any]
         await emit_progress(emit, "verification_skipped", reason="disabled" if not request.verify_email_domains else "no_emails")
 
     provider_unavailable = not discovered and bool(query_reports) and all(report.get("status") == "error" for report in query_reports)
+    if phone_map or emails or (mode == "general" and scraped_count):
+        status = "success"
+    elif discovered and not scraped_count:
+        status = "blocked"
+    elif discovered:
+        status = "no_contacts"
+    elif provider_unavailable:
+        status = "search_provider_unavailable"
+    else:
+        status = "no_results"
+
     result = {
-        "status": "success" if phone_map or emails else ("blocked" if discovered and not any(x["status"] == "scraped" for x in sources) else "no_contacts" if discovered else "search_provider_unavailable" if provider_unavailable else "no_results"),
+        "status": status,
+        "mode": mode,
         "identity": request.model_dump(),
         "phones": list(phone_map.values()),
         "emails": email_records,
@@ -417,13 +793,34 @@ async def run_search(request: SearchRequest, emit: Any = None) -> dict[str, Any]
         "sources": sources,
         "discovery_queries": query_reports,
         "discovered_count": len(discovered),
-        "scraped_count": sum(1 for x in sources if x["status"] == "scraped"),
-        "relevant_count": sum(1 for x in sources if x.get("relevance", 0) >= 2),
+        "scraped_count": scraped_count,
+        "relevant_count": sum(1 for source in sources if source.get("relevance", 0) >= 2 and source.get("identity_match", True)),
         "duration_seconds": round(time.perf_counter() - started, 2),
         "proxy_used": bool(proxy),
     }
-    await emit_progress(emit, "result_ready", status=result["status"], discovered_count=result["discovered_count"], scraped_count=result["scraped_count"], relevant_count=result["relevant_count"], duration_seconds=result["duration_seconds"])
+    await emit_progress(
+        emit,
+        "result_ready",
+        status=result["status"],
+        mode=mode,
+        discovered_count=result["discovered_count"],
+        scraped_count=result["scraped_count"],
+        relevant_count=result["relevant_count"],
+        duration_seconds=result["duration_seconds"],
+    )
     return result
+
+
+def module_status() -> dict[str, bool]:
+    modules: dict[str, bool] = {}
+    for module in ("ddgs", "crawl4ai", "aiohttp", "aiohttp_socks", "pandas", "openpyxl", "phonenumbers", "dns"):
+        try:
+            __import__(module)
+            modules[module] = True
+        except Exception:
+            modules[module] = False
+    modules["duckduckgo_search"] = modules["ddgs"]
+    return modules
 
 
 @app.get("/")
@@ -433,27 +830,33 @@ async def root() -> dict[str, str]:
 
 @app.get("/health")
 async def health() -> dict[str, Any]:
-    modules: dict[str, bool] = {}
-    for module in ("duckduckgo_search", "crawl4ai", "aiohttp", "aiohttp_socks", "pandas", "openpyxl", "phonenumbers", "dns"):
-        try:
-            __import__(module)
-            modules[module] = True
-        except Exception:
-            modules[module] = False
-    return {"ok": modules["duckduckgo_search"] and modules["aiohttp"], "search_ready": modules["duckduckgo_search"] and modules["aiohttp"], "browser_crawler_ready": modules["crawl4ai"], "proxy_ready": modules["aiohttp_socks"], "batch_ready": modules["pandas"] and modules["openpyxl"], "modules": modules}
+    modules = module_status()
+    configured = [name for name, _, _ in provider_chain()]
+    usable = [name for name in configured if PROVIDER_STATE.get(name, {}).get("status") != "offline"]
+    return {
+        "ok": modules["aiohttp"],
+        "search_ready": modules["aiohttp"] and bool(usable),
+        "browser_crawler_ready": modules["crawl4ai"],
+        "proxy_ready": modules["aiohttp_socks"],
+        "batch_ready": modules["pandas"] and modules["openpyxl"],
+        "primary_provider": configured[0] if configured else None,
+        "provider_chain": configured,
+        "providers": {name: PROVIDER_STATE.get(name, {"status": "unknown"}) for name in configured},
+        "modules": modules,
+    }
 
 
 @app.post("/search")
 async def search(request: SearchRequest) -> JSONResponse:
     try:
-        result = await asyncio.wait_for(run_search(request), timeout=180)
+        result = await asyncio.wait_for(run_search(request), timeout=SEARCH_TIMEOUT)
         return JSONResponse({"ok": True, "result": result})
     except asyncio.TimeoutError as exc:
-        raise HTTPException(504, "Search exceeded the 180-second safety limit") from exc
+        raise HTTPException(504, f"Search exceeded the {SEARCH_TIMEOUT}-second safety limit") from exc
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
     except Exception as exc:
-        raise HTTPException(500, f"Search failed: {exc}") from exc
+        raise HTTPException(500, f"Search failed: {redact(exc)}") from exc
 
 
 @app.post("/search/stream")
@@ -466,14 +869,14 @@ async def search_stream(request: SearchRequest) -> StreamingResponse:
 
         async def runner() -> None:
             try:
-                result = await asyncio.wait_for(run_search(request, emit), timeout=180)
+                result = await asyncio.wait_for(run_search(request, emit), timeout=SEARCH_TIMEOUT)
                 await emit({"type": "complete", "at": round(time.time(), 3), "result": result})
             except asyncio.TimeoutError:
-                await emit({"type": "error", "at": round(time.time(), 3), "category": "timeout", "error": "Search exceeded the 180-second safety limit"})
+                await emit({"type": "error", "at": round(time.time(), 3), "category": "timeout", "error": f"Search exceeded the {SEARCH_TIMEOUT}-second safety limit"})
             except ValueError as exc:
                 await emit({"type": "error", "at": round(time.time(), 3), "category": "invalid_input", "error": str(exc)})
             except Exception as exc:
-                await emit({"type": "error", "at": round(time.time(), 3), "category": "server_error", "error": str(exc)})
+                await emit({"type": "error", "at": round(time.time(), 3), "category": "server_error", "error": redact(exc)})
             finally:
                 await queue.put(None)
 
@@ -493,39 +896,69 @@ async def search_stream(request: SearchRequest) -> StreamingResponse:
 
 
 @app.post("/batch")
-async def batch(file: UploadFile = File(...), concurrency: int = Form(2), delay: float = Form(0), proxy: str = Form(""), verify_email_domains: bool = Form(True), use_ollama: bool = Form(False)) -> FileResponse:
+async def batch(
+    file: UploadFile = File(...),
+    concurrency: int = Form(2),
+    delay: float = Form(0),
+    proxy: str = Form(""),
+    verify_email_domains: bool = Form(True),
+    use_ollama: bool = Form(False),
+) -> FileResponse:
     if not file.filename or not file.filename.lower().endswith(".xlsx"):
         raise HTTPException(400, "Select an .xlsx workbook")
     temp_dir = Path(tempfile.mkdtemp(prefix="qikreach-"))
     input_path = temp_dir / Path(file.filename).name
-    total = 0
-    with input_path.open("wb") as handle:
-        while chunk := await file.read(1024 * 1024):
-            total += len(chunk)
-            if total > MAX_UPLOAD:
-                raise HTTPException(413, "Maximum upload is 10 MiB")
-            handle.write(chunk)
-    frame = pd.read_excel(input_path)
-    for column in ("Enriched_Phones", "Enriched_Emails", "Data_Sources", "Enrichment_Status"):
-        if column not in frame.columns:
-            frame[column] = ""
-    semaphore = asyncio.Semaphore(max(1, min(concurrency, 4)))
+    try:
+        total = 0
+        with input_path.open("wb") as handle:
+            while chunk := await file.read(1024 * 1024):
+                total += len(chunk)
+                if total > MAX_UPLOAD:
+                    raise HTTPException(413, "Maximum upload is 10 MiB")
+                handle.write(chunk)
+        frame = pd.read_excel(input_path)
+        for column in ("Enriched_Phones", "Enriched_Emails", "Data_Sources", "Enrichment_Status"):
+            if column not in frame.columns:
+                frame[column] = ""
+        semaphore = asyncio.Semaphore(max(1, min(concurrency, 4)))
 
-    async def enrich(index: Any, row: Any) -> None:
-        async with semaphore:
-            if delay:
-                await asyncio.sleep(max(0, min(delay, 10)))
-            request = SearchRequest(query=clean(row.get("Company") or row.get("Name") or row.get("Phone") or row.get("Email")), fields=Fields(company=clean(row.get("Company")), person=clean(row.get("Owner") or row.get("Name")), phone=clean(row.get("Phone") or row.get("Phones")), email=clean(row.get("Email") or row.get("Emails")), ein=clean(row.get("EIN")), state=clean(row.get("State")), address=clean(row.get("Address"))), proxy=proxy, verify_email_domains=verify_email_domains, use_ollama=use_ollama)
-            try:
-                result = await run_search(request)
-                frame.at[index, "Enriched_Phones"] = " | ".join(x["number"] for x in result["phones"]) or "None"
-                frame.at[index, "Enriched_Emails"] = " | ".join(x["email"] for x in result["emails"]) or "None"
-                frame.at[index, "Data_Sources"] = " | ".join(x["url"] for x in result["sources"]) or "None"
-                frame.at[index, "Enrichment_Status"] = result["status"]
-            except Exception as exc:
-                frame.at[index, "Enrichment_Status"] = f"error: {exc}"
+        async def enrich(index: Any, row: Any) -> None:
+            async with semaphore:
+                if delay:
+                    await asyncio.sleep(max(0, min(delay, 10)))
+                request = SearchRequest(
+                    query=clean(row.get("Company") or row.get("Name") or row.get("Phone") or row.get("Email")),
+                    fields=Fields(
+                        company=clean(row.get("Company")),
+                        person=clean(row.get("Owner") or row.get("Name")),
+                        phone=clean(row.get("Phone") or row.get("Phones")),
+                        email=clean(row.get("Email") or row.get("Emails")),
+                        ein=clean(row.get("EIN")),
+                        state=clean(row.get("State")),
+                        address=clean(row.get("Address")),
+                    ),
+                    proxy=proxy,
+                    verify_email_domains=verify_email_domains,
+                    use_ollama=use_ollama,
+                )
+                try:
+                    result = await run_search(request)
+                    frame.at[index, "Enriched_Phones"] = " | ".join(item["number"] for item in result["phones"]) or "None"
+                    frame.at[index, "Enriched_Emails"] = " | ".join(item["email"] for item in result["emails"]) or "None"
+                    frame.at[index, "Data_Sources"] = " | ".join(item["url"] for item in result["sources"]) or "None"
+                    frame.at[index, "Enrichment_Status"] = result["status"]
+                except Exception as exc:
+                    frame.at[index, "Enrichment_Status"] = f"error: {redact(exc)}"
 
-    await asyncio.wait_for(asyncio.gather(*(enrich(index, row) for index, row in frame.iterrows())), timeout=900)
-    output_path = temp_dir / f"{input_path.stem}_ENRICHED.xlsx"
-    frame.to_excel(output_path, index=False)
-    return FileResponse(output_path, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", filename=output_path.name)
+        await asyncio.wait_for(asyncio.gather(*(enrich(index, row) for index, row in frame.iterrows())), timeout=900)
+        output_path = temp_dir / f"{input_path.stem}_ENRICHED.xlsx"
+        frame.to_excel(output_path, index=False)
+        return FileResponse(
+            output_path,
+            filename=output_path.name,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            background=BackgroundTask(shutil.rmtree, temp_dir, ignore_errors=True),
+        )
+    except Exception:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        raise

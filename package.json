@@ -5,15 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
-    "db:init": "wrangler d1 execute qikreach-vault --remote --file=./schema.sql"
+    "deploy": "wrangler deploy"
   },
-  "dependencies": {
-    "xlsx": "0.18.5"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@cloudflare/workers-types": "latest",
     "typescript": "latest",
     "wrangler": "latest"
+  },
+  "overrides": {
+    "undici": "7.29.0"
   }
 }

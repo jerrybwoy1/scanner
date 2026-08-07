@@ -1,35 +1,68 @@
-# QikReach Mobile — Cloudflare Free Deployment
+# QikReach
 
-Cloudflare-native browser version. It uses Workers, static assets, and D1, and does not require a computer to remain on.
+QikReach is a browser-based public-source search and contact-enrichment application.
 
-## One-time Cloudflare setup
+## Architecture
 
-1. In Cloudflare, open **Workers & Pages** and connect this GitHub repository.
-2. Create a D1 database named `qikreach-vault`.
-3. Copy its database ID into `wrangler.jsonc`, replacing `REPLACE_WITH_D1_DATABASE_ID`.
-4. In the Worker settings, add encrypted secrets:
-   - `QIKREACH_PASSWORD`: your login password
-   - `QIKREACH_SESSION_SECRET`: a long random value of at least 32 characters
-5. Deploy the Worker.
-6. Initialize D1 once by running `schema.sql` in Cloudflare's D1 console, or run `npm run db:init` with Wrangler authenticated.
+- Cloudflare Worker `scanner` serves `public/index.html` and proxies `/api/*`.
+- FastAPI runs on Render at `https://qikreach-python-backend.onrender.com`.
+- The browser calls only the Worker routes.
+- There is no local vault or D1 persistence in this version.
 
-The username defaults to `admin` and may be changed in `wrangler.jsonc`.
+The public API contract is:
 
-## Free-build limits
+- `GET /api/health`
+- `POST /api/search`
+- `POST /api/search/stream`
+- `POST /api/batch`
 
-- `.xlsx` uploads only
-- 10 MiB maximum upload
-- 1,000 rows maximum per batch
-- The enriched workbook is returned immediately rather than retained as a file
-- Lead records persist in D1
+## Search providers
+
+Discovery uses the first available provider and falls back automatically:
+
+1. Gemini 2.5 Flash with Google Search grounding when `GEMINI_API_KEY` is configured.
+2. Tavily when `TAVILY_API_KEY` is configured.
+3. DDGS Brave and DuckDuckGo backends as best-effort, keyless fallbacks.
+
+Configure provider keys only in the Render environment. Never expose them in the Worker or browser source.
+
+Required Render environment variable:
+
+```text
+APP_ORIGIN=https://scanner.jerrylang.workers.dev
+```
+
+Recommended free provider variable:
+
+```text
+GEMINI_API_KEY=your-server-side-key
+```
+
+Optional fallback:
+
+```text
+TAVILY_API_KEY=your-server-side-key
+```
 
 ## Local verification
 
 ```bash
 npm install
-npx wrangler d1 create qikreach-vault
-# Put the returned database ID in wrangler.jsonc
-npx wrangler secret put QIKREACH_PASSWORD
-npx wrangler secret put QIKREACH_SESSION_SECRET
-npm run dev
+npx wrangler dev
+```
+
+Run the backend separately from `backend/`:
+
+```bash
+pip install -r requirements.txt
+uvicorn api:app --reload
+```
+
+## Deployment
+
+Render deploys the backend from `main` using `render.yaml`. Deploy the existing Worker with:
+
+```bash
+npx wrangler deploy --dry-run
+npm run deploy
 ```
