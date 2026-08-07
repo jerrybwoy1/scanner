@@ -77,7 +77,7 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
 .trace-row.success .trace-icon{color:var(--success)}.trace-row.warning .trace-icon{color:var(--warning)}.trace-row.error .trace-icon{color:var(--danger)}.trace-row.active .trace-icon{color:var(--blue)}
 .trace-main{min-width:0}.trace-main strong{font-weight:500;color:#30364b}.trace-detail{color:#667085;margin-top:3px;overflow-wrap:anywhere}
 .advanced-diagnostics{margin-top:12px;border:1px solid var(--line);border-radius:8px;background:#fafbfc}.advanced-diagnostics summary{padding:11px 13px;cursor:pointer;color:#475467;font-size:12px;list-style:none}.advanced-diagnostics summary::after{content:"+";float:right;color:var(--blue);font-size:16px}.advanced-diagnostics[open] summary::after{content:"−"}.diagnostic-grid{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--line);padding:10px 12px;gap:9px 14px}.diagnostic-cell{min-width:0}.diagnostic-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}.diagnostic-value{font-size:12px;color:#475467;margin-top:2px;overflow-wrap:anywhere}
-.results{margin-top:24px;display:none}.results.show{display:block}
+.results{margin-top:0;display:block}.results.show{display:block}
 .summary-grid{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);margin-bottom:18px}
 .metric{padding:9px 10px;border-right:1px solid var(--line)}.metric:last-child{border-right:0}.metric-value{font-size:18px;font-weight:400;color:var(--navy);line-height:1.2}.metric-label{font-size:11px;color:var(--muted);margin-top:3px;font-weight:400}
 .result-section{border:1px solid var(--line);border-radius:8px;margin-top:14px;overflow:hidden}.result-section h3,.result-section>summary{margin:0;padding:13px 16px;border-bottom:1px solid var(--line);font-size:15px;font-weight:500;color:var(--navy);background:#fafbfc}.result-section>summary{cursor:pointer;list-style:none;border-bottom:0}.result-section[open]>summary{border-bottom:1px solid var(--line)}.result-section>summary::after{content:"+";float:right;color:var(--blue);font-size:18px}.result-section[open]>summary::after{content:"−"}
@@ -172,7 +172,7 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
 
     <section class="result-column">
       <section id="results" class="results panel" aria-labelledby="results-heading">
-          <div class="panel-head"><h2 id="results-heading">Results</h2><span id="result-status" class="timer"></span></div>
+          <div class="panel-head"><h2 id="results-heading">Live Results</h2><span id="result-status" class="timer"></span></div>
           <div id="summary-grid" class="summary-grid"></div>
           <div id="result-content"></div>
           <div id="issue-box" class="issue-box"></div>
@@ -573,6 +573,7 @@ function handleStreamEvent(event) {
     case 'query_completed': trace(`${String(event.provider || 'Search provider').replaceAll('_',' ')} complete`,`${event.results} unique public result(s) accepted.`,'success'); break;
     case 'query_failed': trace(`${String(event.provider || 'Search provider').replaceAll('_',' ')} failed`,`${event.category || 'error'} • ${event.error}`,'warning'); break;
     case 'url_discovered': recordLiveSource(event,'discovered'); trace(`Source discovered #${event.index}`,`${event.title || 'Untitled'} • ${sourceDomain(event.url)}`,'success'); break;
+    case 'url_filtered': trace('Irrelevant source skipped',`${event.title || 'Untitled'} • ${event.reason || 'not relevant'} • ${sourceDomain(event.url)}`,'warning'); break;
     case 'discovery_completed': trace('Discovery complete',`${event.discovered} unique public source(s) accepted.`,'success'); break;
     case 'discovery_stopped': trace('Discovery target reached',`${event.reason} Checked ${event.completed}/${event.total} provider(s).`,'success'); break;
     case 'source_started': transition(SearchState.SCRAPING); recordLiveSource(event,'opening'); trace(`Opening source ${event.index}/${event.total}`,`Checking ${sourceDomain(event.url)} for business name, address, owner, phones, emails, and page context.`,'active'); break;

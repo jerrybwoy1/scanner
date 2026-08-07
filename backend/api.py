@@ -60,6 +60,7 @@ DIRECTORY_DOMAINS = {
     "bizprofile.net", "openigloo.com", "buzzfile.com", "company-detail.com", "truepeoplesearch.com",
     "telephonedirectories.us", "thephoneindex.com", "areacodelocator.net", "tfrecipes.com", "local.us-info.com", "numlookup.com",
 }
+ENCYCLOPEDIA_DOMAINS = {"wikipedia.org", "wikimedia.org", "britannica.com", "simple.wikipedia.org"}
 GENERIC_MAILBOXES = {"help", "support", "contact", "info", "sales", "privacy", "admin", "noreply", "no-reply", "webmaster", "me"}
 NAME_STOPWORDS = {"from", "near", "in", "at", "on", "around", "zip", "zipcode", "county", "state", "phone", "email", "address"}
 
@@ -278,6 +279,14 @@ def filter_contacts_for_identity(
 
 def source_host(url: str) -> str:
     return (urlparse(clean(url)).hostname or "").lower().removeprefix("www.")
+
+
+def discovery_allowed_url(url: str, mode: str) -> bool:
+    """Keep encyclopedic pages out of contact/business searches; allow them for general topics."""
+    if mode == "general":
+        return True
+    host = source_host(url)
+    return not any(host == domain or host.endswith(f".{domain}") for domain in ENCYCLOPEDIA_DOMAINS)
 
 
 def filter_source_emails(emails: list[str], item: dict[str, str], terms: list[str]) -> list[str]:
@@ -506,7 +515,7 @@ def ddgs_search(query: str, proxy: str, backend: str) -> list[dict[str, str]]:
     ]
 
 
-async def discover(subject: str, proxy: str, emit: Any = None, target: int = DISCOVERY_TARGET) -> tuple[list[dict[str, str]], list[dict[str, Any]]]:
+async def discover(subject: str, proxy: str, emit: Any = None, target: int = DISCOVERY_TARGET, mode: str = "general") -> tuple[list[dict[str, str]], list[dict[str, Any]]]:
     import aiohttp
 
     providers = provider_chain()
@@ -531,6 +540,9 @@ async def discover(subject: str, proxy: str, emit: Any = None, target: int = DIS
                     url = clean(result.get("url"))
                     key = canonical_url(url)
                     if not url or not key or key in seen or not await asyncio.to_thread(is_public_url, url):
+                        continue
+                    if not discovery_allowed_url(url, mode):
+                        await emit_progress(emit, "url_filtered", url=url, title=clean(result.get("title")), reason="encyclopedic source excluded for contact/business search")
                         continue
                     seen.add(key)
                     item = {
@@ -959,7 +971,7 @@ async def run_search(request: SearchRequest, emit: Any = None) -> dict[str, Any]
     )
     await emit_progress(emit, "queries_prepared", count=1, queries=[subject], mode=mode)
     discovery_target = min(MAX_URLS, 6 if request.deep_search else DISCOVERY_TARGET)
-    discovered, query_reports = await discover(subject, proxy, emit, discovery_target)
+    discovered, query_reports = await discover(subject, proxy, emit, discovery_target, mode)
     sources = await scrape_sources(discovered, terms, mode, proxy, emit) if discovered else []
 
     phone_map: dict[tuple[str, str], dict[str, Any]] = {}
