@@ -1,5 +1,9 @@
 node_modules/
+dist/
 .wrangler/
-.dev.vars
-.DS_Store
-*.log
+__pycache__/
+*.pyc
+.env
+.venv/
+venv/
+*.db
