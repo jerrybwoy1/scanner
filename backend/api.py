@@ -59,7 +59,7 @@ DIRECTORY_DOMAINS = {
     "bizprofile.net", "openigloo.com", "buzzfile.com", "company-detail.com", "truepeoplesearch.com",
     "telephonedirectories.us", "thephoneindex.com", "areacodelocator.net", "tfrecipes.com", "local.us-info.com", "numlookup.com",
 }
-GENERIC_MAILBOXES = {"help", "support", "contact", "info", "sales", "privacy", "admin", "noreply", "no-reply", "webmaster"}
+GENERIC_MAILBOXES = {"help", "support", "contact", "info", "sales", "privacy", "admin", "noreply", "no-reply", "webmaster", "me"}
 NAME_STOPWORDS = {"from", "near", "in", "at", "on", "around", "zip", "zipcode", "county", "state", "phone", "email", "address"}
 
 PROVIDER_STATE: dict[str, dict[str, Any]] = {
