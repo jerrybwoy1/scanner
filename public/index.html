@@ -66,7 +66,7 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
 .search-state.warning{border-left:4px solid #e0a100;background:#fffaf0}
 .search-state.error{border-left:4px solid var(--danger);background:#fff6f5}
 .state-title{font-size:15px;font-weight:500;color:var(--navy)}.state-copy{font-size:14px;color:#5b6174;margin-top:4px;line-height:1.45}
-.diagnostic{margin-top:10px;padding:10px 12px;background:#fffaf0;border:1px solid #f0d58a;color:#6b5200;font-size:13px;line-height:1.45;display:none}
+.diagnostic{margin-top:8px;padding:7px 9px;background:#fffaf0;border:1px solid #f0d58a;color:#6b5200;font-size:12px;line-height:1.35;display:none}
 .diagnostic.show{display:block}
 .trace{margin-top:18px;border:1px solid var(--line);border-radius:8px;background:#fff;overflow:hidden}
 .trace-head{display:flex;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);background:#fafbfc}
@@ -91,7 +91,7 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
 .batch-progress{display:none;align-items:center;gap:9px;margin-top:12px}.batch-progress.show{display:flex}.batch-progress-track{height:6px;flex:1;border-radius:99px;background:#e8ebf0;overflow:hidden}.batch-progress-bar{height:100%;width:38%;border-radius:99px;background:var(--blue);animation:batch-slide 1.15s ease-in-out infinite}.batch-progress.complete .batch-progress-bar{width:100%;animation:none;background:var(--success)}.batch-progress.error .batch-progress-bar{width:100%;animation:none;background:var(--danger)}.batch-elapsed{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}@keyframes batch-slide{0%{transform:translateX(-120%)}100%{transform:translateX(280%)}}
 .history-details{min-height:350px}.history-details>summary{cursor:pointer;list-style:none;padding:13px 16px;color:var(--navy);font-weight:400;display:flex;justify-content:space-between;gap:12px}.history-details>summary::after{content:"+";color:var(--blue);font-size:20px}.history-details[open]>summary::after{content:"−"}.history-list{border-top:1px solid var(--line);height:292px;max-height:292px;overflow:auto}.history-empty{padding:16px;color:var(--muted);font-size:13px}.history-entry{width:100%;border:0;border-bottom:1px solid var(--line2);background:#fff;text-align:left;padding:9px 16px;cursor:pointer;color:var(--ink)}.history-entry:hover,.history-entry:focus-visible{background:#f5f8ff;outline:none}.history-query{font-weight:400;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px}.history-meta{font-size:11px;color:var(--muted);margin-top:3px;font-weight:400}
 .history-dialog{width:min(680px,calc(100vw - 28px));max-height:82vh;border:1px solid var(--line);border-radius:12px;padding:0;box-shadow:0 24px 70px rgba(16,24,40,.24);color:var(--ink)}.history-dialog::backdrop{background:rgba(16,26,70,.38)}.dialog-head{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--line);padding:16px 18px;display:flex;align-items:center;justify-content:space-between;gap:16px}.dialog-head h2{font-size:17px;color:var(--navy);margin:0}.dialog-close{border:1px solid var(--line);border-radius:7px;background:#fff;min-width:40px;min-height:40px;cursor:pointer;font-size:20px}.dialog-body{padding:18px;overflow:auto}.dialog-query{font-size:18px;font-weight:650;color:var(--navy);overflow-wrap:anywhere}.dialog-meta{font-size:12px;color:var(--muted);margin-top:6px}
-.issue-box{display:none;margin-top:16px;border:1px solid #f1c7c3;background:#fff7f6;padding:14px}.issue-box.show{display:block}.issue-box h3{margin:0 0 8px;color:#8f251d;font-size:14px}.issue-box ul{margin:0;padding-left:18px;font-size:13px;line-height:1.5;color:#69403c}
+.issue-box{display:none;margin-top:12px;border:1px solid #f1c7c3;background:#fff7f6;padding:9px 10px}.issue-box.show{display:block}.issue-box h3{margin:0 0 6px;color:#8f251d;font-size:13px}.issue-box ul{margin:0;padding-left:17px;font-size:12px;line-height:1.4;color:#69403c}
 @media(max-width:850px){.layout{grid-template-columns:1fr}.left-column,.result-column{display:contents}.side-stack{grid-template-columns:1fr 1fr;position:static}.page{padding:22px 18px 48px}.hero{display:block}.subtitle{text-align:left;margin-top:5px}.topbar{padding:0 18px}}
 @media(max-width:620px){.topbar{height:58px}.brand{font-size:20px}.page{padding:22px 16px 42px}.form-grid,.advanced-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.actions{flex-direction:column}.btn{width:100%}.side-stack{grid-template-columns:1fr}.summary-grid{grid-template-columns:1fr 1fr}.metric:nth-child(2){border-right:0}.metric:nth-child(-n+2){border-bottom:1px solid var(--line)}.trace-row{grid-template-columns:58px 20px 1fr;padding:10px 10px}}
 </style>
@@ -251,6 +251,14 @@ function startBatchClock() {
   clearInterval(batchTimerId);
   $('batchElapsed').textContent = '00:00 elapsed';
   batchTimerId = setInterval(() => $('batchElapsed').textContent = `${formatElapsed(Date.now() - batchStartedAt)} elapsed`, 1000);
+}
+function batchErrorMessage(response, data) {
+  const status = Number(response?.status || 0);
+  const raw = String(data?.detail || data?.error || '').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();
+  if (status === 524 || /error code:\s*524|cloudflare.*timeout/i.test(raw)) return 'Batch timed out at the hosting edge (HTTP 524). Try a smaller workbook or split this sheet into two files.';
+  if (status === 502 || status === 503) return 'Batch service is waking or temporarily unavailable. Try again in a moment.';
+  if (status === 413) return 'This workbook is larger than the 10 MiB upload limit.';
+  return (raw || `Batch failed (HTTP ${status || 'unknown'}).`).slice(0,260);
 }
 function stopBatchClock() {
   clearInterval(batchTimerId);
@@ -840,7 +848,7 @@ $('batch').addEventListener('click', async () => {
   try {
     const form = new FormData();
     form.append('file',file);
-    form.append('concurrency','2');
+    form.append('concurrency','4');
     form.append('delay','0');
     form.append('proxy',$('proxy').value.trim());
     form.append('verify_email_domains',String($('verify').checked));
@@ -849,7 +857,7 @@ $('batch').addEventListener('click', async () => {
     const response = await fetch('/api/batch',{method:'POST',body:form});
     if (!response.ok) {
       const data = await readResponse(response);
-      throw new Error(data.detail || data.error || `Batch failed (${response.status})`);
+      throw new Error(batchErrorMessage(response, data));
     }
     const blob = await response.blob();
     if (!blob.size) throw new Error('Backend returned an empty workbook.');
