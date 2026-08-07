@@ -60,7 +60,7 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
 .advanced-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:6px 0 4px}
 .check{display:flex;align-items:center;gap:9px;margin-top:14px;color:#475467;font-size:14px}.check input{width:17px;height:17px}
 .health-line{display:flex;align-items:center;gap:8px;padding:12px 14px;background:var(--soft);border:1px solid var(--line2);margin-top:18px;font-size:13px;color:#475467}
-.search-state{margin-top:16px;border:1px solid var(--line);border-radius:8px;padding:15px 16px;background:#fff}
+.search-state{display:none;margin-top:16px;border:1px solid var(--line);border-radius:8px;padding:15px 16px;background:#fff}
 .search-state.working{border-left:4px solid var(--blue);background:var(--softblue)}
 .search-state.success{border-left:4px solid var(--success)}
 .search-state.warning{border-left:4px solid #e0a100;background:#fffaf0}
@@ -86,11 +86,10 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
 .source-card{padding:13px 0;border-bottom:1px solid var(--line2)}.source-card:last-child{border-bottom:0}.source-title{font-weight:500;color:#30364b;font-size:14px}.source-meta{font-size:13px;color:#667085;margin-top:5px}.source-error{font-size:13px;color:var(--danger);margin-top:5px;overflow-wrap:anywhere}.source-url{display:block;margin-top:5px;overflow-wrap:anywhere;word-break:break-word;font-size:13px}.source-extracted{margin-top:7px;color:#176448;font-size:13px;overflow-wrap:anywhere}.source-snippet{margin-top:8px;color:#475467;font-size:14px;line-height:1.45;overflow-wrap:anywhere}.contact-source{display:block;margin-top:6px;color:#667085;font-size:13px;line-height:1.35;overflow-wrap:anywhere}.contact-source a{display:inline;color:var(--blue);font-weight:500}.detail-card{border:1px solid var(--line);padding:11px 12px;background:#fff;min-width:min(100%,320px);flex:1 1 320px}.detail-label{font-size:13px;color:var(--muted);font-weight:500;text-transform:uppercase;letter-spacing:.04em}.detail-value{font-size:14px;color:#30364b;margin-top:4px;line-height:1.45;overflow-wrap:anywhere}.detail-source{font-size:13px;color:var(--muted);margin-top:7px}
 .tech{margin-top:14px;border:1px solid var(--line)}.tech summary{padding:11px 13px;cursor:pointer;color:#475467;font-size:13px}.tech pre{margin:0;padding:13px;border-top:1px solid var(--line);background:#f8fafc;max-height:300px;overflow:auto;font-size:11px;white-space:pre-wrap;word-break:break-word}
 .side-stack{display:grid;gap:24px;position:sticky;top:72px}
-.results-placeholder{min-height:286px;border:1px solid var(--line);border-radius:12px;background:#fff;box-shadow:0 4px 18px rgba(16,24,40,.045);padding:22px 24px;color:var(--muted)}.results-placeholder h2{margin:0;color:var(--navy);font-size:18px;font-weight:500}.results-placeholder p{margin:8px 0 18px;font-size:14px;line-height:1.5}.placeholder-list{display:grid;gap:9px}.placeholder-row{display:flex;align-items:center;gap:10px;border-top:1px solid var(--line2);padding-top:9px;font-size:13px}.placeholder-mark{width:7px;height:7px;border-radius:50%;background:#98a2b3;flex:0 0 auto}
 .side-note{padding:18px 20px;background:#eef5ff;border:1px solid #cbdcf9;color:#35405f;font-size:14px;line-height:1.5}.side-note strong{color:var(--navy)}
 .batch-status{font-size:13px;color:#5f6678;margin-top:10px;min-height:18px}.download a{display:inline-block;margin-top:10px;color:var(--blue);font-weight:700}
 .batch-progress{display:none;align-items:center;gap:9px;margin-top:12px}.batch-progress.show{display:flex}.batch-progress-track{height:6px;flex:1;border-radius:99px;background:#e8ebf0;overflow:hidden}.batch-progress-bar{height:100%;width:38%;border-radius:99px;background:var(--blue);animation:batch-slide 1.15s ease-in-out infinite}.batch-progress.complete .batch-progress-bar{width:100%;animation:none;background:var(--success)}.batch-progress.error .batch-progress-bar{width:100%;animation:none;background:var(--danger)}.batch-elapsed{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}@keyframes batch-slide{0%{transform:translateX(-120%)}100%{transform:translateX(280%)}}
-.history-details{min-height:250px}.history-details>summary{cursor:pointer;list-style:none;padding:16px 20px;color:var(--navy);font-weight:400;display:flex;justify-content:space-between;gap:12px}.history-details>summary::after{content:"+";color:var(--blue);font-size:20px}.history-details[open]>summary::after{content:"−"}.history-list{border-top:1px solid var(--line);height:192px;max-height:192px;overflow:auto}.history-empty{padding:16px 20px;color:var(--muted);font-size:13px}.history-entry{width:100%;border:0;border-bottom:1px solid var(--line2);background:#fff;text-align:left;padding:12px 20px;cursor:pointer;color:var(--ink)}.history-entry:hover,.history-entry:focus-visible{background:#f5f8ff;outline:none}.history-query{font-weight:400;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.history-meta{font-size:12px;color:var(--muted);margin-top:4px;font-weight:400}
+.history-details{min-height:350px}.history-details>summary{cursor:pointer;list-style:none;padding:13px 16px;color:var(--navy);font-weight:400;display:flex;justify-content:space-between;gap:12px}.history-details>summary::after{content:"+";color:var(--blue);font-size:20px}.history-details[open]>summary::after{content:"−"}.history-list{border-top:1px solid var(--line);height:292px;max-height:292px;overflow:auto}.history-empty{padding:16px;color:var(--muted);font-size:13px}.history-entry{width:100%;border:0;border-bottom:1px solid var(--line2);background:#fff;text-align:left;padding:9px 16px;cursor:pointer;color:var(--ink)}.history-entry:hover,.history-entry:focus-visible{background:#f5f8ff;outline:none}.history-query{font-weight:400;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px}.history-meta{font-size:11px;color:var(--muted);margin-top:3px;font-weight:400}
 .history-dialog{width:min(680px,calc(100vw - 28px));max-height:82vh;border:1px solid var(--line);border-radius:12px;padding:0;box-shadow:0 24px 70px rgba(16,24,40,.24);color:var(--ink)}.history-dialog::backdrop{background:rgba(16,26,70,.38)}.dialog-head{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--line);padding:16px 18px;display:flex;align-items:center;justify-content:space-between;gap:16px}.dialog-head h2{font-size:17px;color:var(--navy);margin:0}.dialog-close{border:1px solid var(--line);border-radius:7px;background:#fff;min-width:40px;min-height:40px;cursor:pointer;font-size:20px}.dialog-body{padding:18px;overflow:auto}.dialog-query{font-size:18px;font-weight:650;color:var(--navy);overflow-wrap:anywhere}.dialog-meta{font-size:12px;color:var(--muted);margin-top:6px}
 .issue-box{display:none;margin-top:16px;border:1px solid #f1c7c3;background:#fff7f6;padding:14px}.issue-box.show{display:block}.issue-box h3{margin:0 0 8px;color:#8f251d;font-size:14px}.issue-box ul{margin:0;padding-left:18px;font-size:13px;line-height:1.5;color:#69403c}
 @media(max-width:850px){.layout{grid-template-columns:1fr}.left-column,.result-column{display:contents}.side-stack{grid-template-columns:1fr 1fr;position:static}.page{padding:22px 18px 48px}.hero{display:block}.subtitle{text-align:left;margin-top:5px}.topbar{padding:0 18px}}
@@ -105,7 +104,7 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
 <main class="page">
   <section class="hero">
     <h1>Lead Intelligence</h1>
-    <p class="subtitle">Search anything, discover relevant public sources, and extract verifiable contact intelligence.</p>
+    <p class="subtitle">Search, verify, and enrich public contact intelligence.</p>
   </section>
 
   <div class="layout">
@@ -135,10 +134,7 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
 
         <div id="health" class="health-line" aria-live="polite">Search service checking…</div>
 
-        <div id="status" class="search-state" role="status" aria-live="polite">
-          <div class="state-title">Waiting for a search</div>
-          <div class="state-copy">Results will appear on the right.</div>
-        </div>
+        <div id="status" class="search-state" role="status" aria-live="polite"></div>
         <div id="diagnostic" class="diagnostic" aria-live="polite"></div>
         <section class="trace" aria-labelledby="trace-heading">
           <div class="trace-head"><div id="trace-heading" class="trace-title">Verified Search Activity</div><div id="elapsed" class="timer">00:00</div></div>
@@ -175,15 +171,6 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
     </section>
 
     <section class="result-column">
-      <section id="results-placeholder" class="results-placeholder" aria-labelledby="placeholder-heading">
-        <h2 id="placeholder-heading">Results workspace</h2>
-        <p>Run a search to populate the right side with the most relevant verified findings first.</p>
-        <div class="placeholder-list" aria-label="Result layout preview">
-          <div class="placeholder-row"><span class="placeholder-mark"></span><span>Business identity and page context</span></div>
-          <div class="placeholder-row"><span class="placeholder-mark"></span><span>Clean phone and email contacts</span></div>
-          <div class="placeholder-row"><span class="placeholder-mark"></span><span>Sources and lower-confidence matches kept below</span></div>
-        </div>
-      </section>
       <section id="results" class="results panel" aria-labelledby="results-heading">
           <div class="panel-head"><h2 id="results-heading">Results</h2><span id="result-status" class="timer"></span></div>
           <div id="summary-grid" class="summary-grid"></div>
@@ -275,6 +262,7 @@ function transition(state) {
 }
 function setStatus(title, copy, state='', technicalDetails='') {
   const el = $('status');
+  el.style.display = 'block';
   el.className = `search-state ${state}`.trim();
   el.innerHTML = `<div class="state-title">${esc(title)}</div><div class="state-copy">${esc(copy)}</div>${technicalDetails ? `<details class="tech"><summary>Technical Details</summary><pre>${esc(technicalDetails)}</pre></details>` : ''}`;
 }
@@ -313,7 +301,6 @@ function resetLiveResults() {
   livePhones = new Map();
   liveEmails = new Map();
   liveSources = new Map();
-  $('results-placeholder').style.display = '';
   $('results').classList.remove('show');
   $('summary-grid').replaceChildren();
   $('result-content').replaceChildren();
@@ -369,7 +356,6 @@ function externalSearchLinks(query='') {
 function renderLiveResults() {
   const sources = orderedSources([...liveSources.values()]);
   if (!sources.length && !livePhones.size && !liveEmails.size) return;
-  $('results-placeholder').style.display = 'none';
   const processed = sources.filter(source => ['scraped','failed'].includes(source.status)).length;
   $('results').classList.add('show');
   $('result-status').textContent = 'SEARCHING — LIVE';
@@ -693,7 +679,6 @@ async function fallbackSearch(searchPayload) {
 }
 function renderResult(result) {
   if (!result) return;
-  $('results-placeholder').style.display = 'none';
   const phones = result.phones || [];
   const emails = result.emails || [];
   const sources = orderedSources(result.sources || []);
@@ -840,6 +825,7 @@ $('history-dialog').addEventListener('click',event => { if (event.target === $('
 $('file').addEventListener('change',() => {
   const file = $('file').files[0];
   $('batchStatus').textContent = file ? `Selected: ${file.name}` : '';
+  if (file) $('batch').click();
 });
 $('batch').addEventListener('click', async () => {
   const file = $('file').files[0];
@@ -866,6 +852,8 @@ $('batch').addEventListener('click', async () => {
     }
     const blob = await response.blob();
     if (!blob.size) throw new Error('Backend returned an empty workbook.');
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('spreadsheetml') && !contentType.includes('application/zip')) throw new Error('Backend did not return an XLSX workbook.');
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href=url;
@@ -878,6 +866,7 @@ $('batch').addEventListener('click', async () => {
     setBatchProgress('error');
     $('batchStatus').textContent=`Batch failed: ${error.message}`;
   } finally {
+    $('batchElapsed').textContent = `${formatElapsed(Date.now() - batchStartedAt)} elapsed`;
     stopBatchClock();
     button.disabled=false;
   }
