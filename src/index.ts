@@ -22,6 +22,7 @@ async function proxyApi(request: Request, env: Env, url: URL) {
   const routeMap: Record<string, string> = {
     "/api/health": "/health",
     "/api/search": "/search",
+    "/api/search/stream": "/search/stream",
     "/api/batch": "/batch",
   };
   const targetPath = routeMap[url.pathname];
@@ -41,7 +42,7 @@ async function proxyApi(request: Request, env: Env, url: URL) {
   headers.set("x-qikreach-gateway", "cloudflare-worker");
 
   const controller = new AbortController();
-  const timeoutMs = url.pathname === "/api/batch" ? 900_000 : url.pathname === "/api/search" ? 190_000 : 30_000;
+  const timeoutMs = url.pathname === "/api/batch" ? 900_000 : url.pathname.startsWith("/api/search") ? 190_000 : 30_000;
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetch(target, {
