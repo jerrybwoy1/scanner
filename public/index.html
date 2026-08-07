@@ -76,6 +76,7 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
 .trace-row:last-child{border-bottom:0}.trace-time{color:#81889a;font-variant-numeric:tabular-nums}.trace-icon{font-weight:800;text-align:center}
 .trace-row.success .trace-icon{color:var(--success)}.trace-row.warning .trace-icon{color:var(--warning)}.trace-row.error .trace-icon{color:var(--danger)}.trace-row.active .trace-icon{color:var(--blue)}
 .trace-main{min-width:0}.trace-main strong{font-weight:500;color:#30364b}.trace-detail{color:#667085;margin-top:3px;overflow-wrap:anywhere}
+.advanced-diagnostics{margin-top:12px;border:1px solid var(--line);border-radius:8px;background:#fafbfc}.advanced-diagnostics summary{padding:11px 13px;cursor:pointer;color:#475467;font-size:12px;list-style:none}.advanced-diagnostics summary::after{content:"+";float:right;color:var(--blue);font-size:16px}.advanced-diagnostics[open] summary::after{content:"−"}.diagnostic-grid{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--line);padding:10px 12px;gap:9px 14px}.diagnostic-cell{min-width:0}.diagnostic-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}.diagnostic-value{font-size:12px;color:#475467;margin-top:2px;overflow-wrap:anywhere}
 .results{margin-top:24px;display:none}.results.show{display:block}
 .summary-grid{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);margin-bottom:18px}
 .metric{padding:9px 10px;border-right:1px solid var(--line)}.metric:last-child{border-right:0}.metric-value{font-size:18px;font-weight:400;color:var(--navy);line-height:1.2}.metric-label{font-size:11px;color:var(--muted);margin-top:3px;font-weight:400}
@@ -143,6 +144,17 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
             <div class="trace-row"><div class="trace-time">--:--</div><div class="trace-icon">○</div><div class="trace-main"><strong>No run yet</strong><div class="trace-detail">Verified search events will appear here.</div></div></div>
           </div>
         </section>
+        <details class="advanced-diagnostics">
+          <summary>Advanced diagnostics &amp; source audit</summary>
+          <div class="diagnostic-grid" aria-live="polite">
+            <div class="diagnostic-cell"><div class="diagnostic-label">State</div><div id="diag-state" class="diagnostic-value">IDLE</div></div>
+            <div class="diagnostic-cell"><div class="diagnostic-label">Last stage</div><div id="diag-stage" class="diagnostic-value">Waiting</div></div>
+            <div class="diagnostic-cell"><div class="diagnostic-label">Confirmed events</div><div id="diag-events" class="diagnostic-value">0</div></div>
+            <div class="diagnostic-cell"><div class="diagnostic-label">Sources / contacts</div><div id="diag-counts" class="diagnostic-value">0 / 0</div></div>
+            <div class="diagnostic-cell"><div class="diagnostic-label">Last source</div><div id="diag-source" class="diagnostic-value">None</div></div>
+            <div class="diagnostic-cell"><div class="diagnostic-label">Last error</div><div id="diag-error" class="diagnostic-value">None</div></div>
+          </div>
+        </details>
 
       </div>
     </section>
@@ -187,7 +199,8 @@ details.advanced summary::after{content:"+";float:right;color:var(--blue);font-s
 
       <div class="side-note">
         <strong>Live diagnostics</strong><br>
-        The activity panel reports only events the browser or backend actually confirms. If a source stalls, blocks automation, rate-limits, times out, or falls back to another retrieval method, the run will identify it.
+        The activity panel reports only events the browser or backend actually confirms. If a source stalls, blocks automation, rate-limits, times out, or falls back to another retrieval method, the run will identify it.<br><br>
+        Search history and observed source outcomes are remembered in this browser only. This improves local ranking and review; it does not train an AI model or send private history to a third party.
       </div>
       </aside>
     </section>
@@ -218,14 +231,27 @@ const SearchState = Object.freeze({
   IDLE:'IDLE', VALIDATING:'VALIDATING', CHECKING_BACKEND:'CHECKING_BACKEND', BACKEND_WAKING:'BACKEND_WAKING', CONNECTING:'CONNECTING', SEARCHING:'SEARCHING', DISCOVERING:'DISCOVERING', SCRAPING:'SCRAPING', VERIFYING:'VERIFYING', PROCESSING:'PROCESSING', SUCCESS:'SUCCESS', NO_RESULTS:'NO_RESULTS', NO_CONTACTS:'NO_CONTACTS', PARTIAL_RESULT:'PARTIAL_RESULT', TIMEOUT:'TIMEOUT', BACKEND_OFFLINE:'BACKEND_OFFLINE', NETWORK_ERROR:'NETWORK_ERROR', SERVER_ERROR:'SERVER_ERROR'
 });
 let currentSearchState = SearchState.IDLE;
+let liveDiagnostics = {events:0, stage:'Waiting', lastSource:'None', lastError:'None'};
 
 function formatElapsed(ms) {
   const total = Math.max(0, Math.floor(ms / 1000));
   return `${String(Math.floor(total / 60)).padStart(2,'0')}:${String(total % 60).padStart(2,'0')}`;
 }
 function elapsed() { return runStartedAt ? formatElapsed(Date.now() - runStartedAt) : '00:00'; }
+function updateDiagnostics(patch={}) {
+  liveDiagnostics = {...liveDiagnostics,...patch};
+  const state = $('diag-state');
+  if (!state) return;
+  state.textContent = currentSearchState;
+  $('diag-stage').textContent = liveDiagnostics.stage || 'Waiting';
+  $('diag-events').textContent = String(liveDiagnostics.events || 0);
+  $('diag-counts').textContent = `${liveSources.size} / ${livePhones.size + liveEmails.size}`;
+  $('diag-source').textContent = liveDiagnostics.lastSource || 'None';
+  $('diag-error').textContent = liveDiagnostics.lastError || 'None';
+}
 function transition(state) {
   currentSearchState = state;
+  updateDiagnostics();
 }
 function setStatus(title, copy, state='', technicalDetails='') {
   const el = $('status');
@@ -260,6 +286,8 @@ function stopClock() {
 function resetTrace() {
   $('trace-list').innerHTML = '';
   setDiagnostic('');
+  liveDiagnostics = {events:0, stage:'Waiting', lastSource:'None', lastError:'None'};
+  updateDiagnostics();
 }
 function resetLiveResults() {
   livePhones = new Map();
@@ -291,7 +319,7 @@ function sourceQuality(source={}) {
   const contactCount = (source.phones || []).length + (source.emails || []).length;
   const identity = source.identity_match === false ? -100 : 0;
   const noisyDirectory = contactCount > 8 ? -45 : 0;
-  return identity + detailCount * 30 + Math.min(contactCount,3) * 8 + (source.status === 'scraped' ? 8 : 0) - Math.min(contactCount,20) - noisyDirectory;
+  return identity + detailCount * 30 + Math.min(contactCount,3) * 8 + (source.status === 'scraped' ? 8 : 0) - Math.min(contactCount,20) - noisyDirectory + sourceMemoryScore(source);
 }
 function orderedSources(sources=[]) {
   return [...sources].sort((a,b) => sourceQuality(b) - sourceQuality(a));
@@ -354,6 +382,7 @@ function recordLiveSource(event, status) {
     status,
     error:event.error || ''
   });
+  updateDiagnostics({lastSource:sourceDomain(event.url), stage:status});
   renderLiveResults();
 }
 function addLiveContacts(phones=[], emails=[], sourceUrl='') {
@@ -371,9 +400,40 @@ function addLiveContacts(phones=[], emails=[], sourceUrl='') {
     if (sourceUrl && !current.source_urls.includes(sourceUrl)) current.source_urls.push(sourceUrl);
     liveEmails.set(key,current);
   });
+  updateDiagnostics();
   renderLiveResults();
 }
 const HISTORY_KEY = 'qikreach.search-history.v1';
+const SOURCE_MEMORY_KEY = 'qikreach.source-memory.v1';
+function readSourceMemory() {
+  try {
+    const value = JSON.parse(localStorage.getItem(SOURCE_MEMORY_KEY) || '{}');
+    return value && typeof value === 'object' ? value : {};
+  } catch { return {}; }
+}
+function sourceMemoryScore(source={}) {
+  const domain = sourceDomain(source.url || '');
+  const memory = readSourceMemory()[domain];
+  if (!memory) return 0;
+  return Math.min(12, (memory.matched || 0) * 2) - Math.min(8, (memory.failed || 0));
+}
+function rememberSourceOutcomes(result) {
+  const memory = readSourceMemory();
+  (result?.sources || []).forEach(source => {
+    const domain = sourceDomain(source.url || '');
+    if (!domain || domain === 'Unknown source') return;
+    const item = memory[domain] || {seen:0,matched:0,failed:0,contacts:0,details:0};
+    const contacts = (source.phones || []).length + (source.emails || []).length;
+    const details = ['business_type','address','owner','summary'].filter(key => source.details?.[key]).length;
+    item.seen += 1;
+    item.matched += source.identity_match === false ? 0 : 1;
+    item.failed += source.status === 'scraped' ? 0 : 1;
+    item.contacts += contacts;
+    item.details += details;
+    memory[domain] = item;
+  });
+  try { localStorage.setItem(SOURCE_MEMORY_KEY,JSON.stringify(memory)); } catch {}
+}
 function readHistory() {
   try {
     const value = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
@@ -418,6 +478,7 @@ function openHistory(id) {
 }
 function trace(title, detail='', state='active') {
   lastEventAt = Date.now();
+  updateDiagnostics({events:liveDiagnostics.events + 1, stage:title, lastError:(state === 'error' || state === 'warning') ? detail : liveDiagnostics.lastError});
   const icons = {active:'●',success:'✓',warning:'!',error:'✕',waiting:'○'};
   const row = document.createElement('div');
   row.className = `trace-row ${state}`;
@@ -494,6 +555,7 @@ function classifySourceError(message='') {
 }
 function handleStreamEvent(event) {
   lastEventAt = Date.now();
+  updateDiagnostics({stage:event.type});
   setDiagnostic('');
   switch (event.type) {
     case 'search_started': transition(SearchState.SEARCHING); trace('Backend search pipeline started','Request accepted by Python backend.','success'); break;
@@ -710,6 +772,8 @@ async function runSearch() {
     const [title,copy,state] = resultState(result);
     transition(contactsState(result));
     setStatus(title,copy,state);
+    rememberSourceOutcomes(result);
+    updateDiagnostics({stage:'result_ready'});
     const historySaved = saveHistory(result);
     trace(historySaved ? 'Search saved locally' : 'Local search history unavailable',historySaved ? 'Open Recent Searches to review the query, contacts, and exact source URLs.' : 'Browser storage is unavailable.',historySaved ? 'success' : 'warning');
   } catch (error) {
