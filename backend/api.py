@@ -188,9 +188,26 @@ def visible_text(html: str) -> str:
         return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", html)).strip()[:60_000]
 
 
+def metadata_surface(html: str) -> str:
+    values: list[str] = []
+    for tag in re.findall(r"(?is)<meta\b[^>]*>", unescape(html)):
+        key_match = re.search(r"(?is)\b(?:name|property|itemprop)\s*=\s*(['\"])(.*?)\1", tag)
+        content_match = re.search(r"(?is)\bcontent\s*=\s*(['\"])(.*?)\1", tag)
+        if not content_match:
+            continue
+        key = key_match.group(2).casefold() if key_match else ""
+        value = re.sub(r"\s+", " ", content_match.group(2)).strip()
+        if value and (key in {"description", "og:title", "og:description", "twitter:title", "twitter:description", "telephone", "email", "address"} or EMAIL_RE.search(value) or PHONE_RE.search(value)):
+            values.append(value)
+    return "\n".join(values)[:12_000]
+
+
 def extraction_surface(html: str, text: str) -> str:
     decoded = unescape(html)
     extras: list[str] = []
+    metadata = metadata_surface(decoded)
+    if metadata:
+        extras.append(metadata)
     for match in re.finditer(r"(?is)\b(?:href|content|data-email|data-phone|data-contact|data-value|value|aria-label)\s*=\s*(['\"])(.*?)\1", decoded):
         value = match.group(2).strip()
         if value.lower().startswith(("mailto:", "tel:")) or EMAIL_RE.search(value) or PHONE_RE.search(value) or INTERNATIONAL_PHONE_RE.search(value):
@@ -384,13 +401,18 @@ def extract_business_details(item: dict[str, str], html: str, text: str) -> dict
         name = first_string(entity, ("legalName", "name"))
         if name and "business_name" not in details and len(name) < 180:
             details["business_name"] = name
+        website = entity.get("url")
+        if isinstance(website, str) and website.startswith(("http://", "https://")) and "website" not in details:
+            website_host = source_host(website)
+            if website_host and website_host != source_host(item.get("url", "")) and website_host not in DIRECTORY_DOMAINS:
+                details["website"] = website
         owner = entity.get("founder") or entity.get("owner")
         if isinstance(owner, dict):
             owner = owner.get("name")
         if isinstance(owner, str) and owner.strip() and "owner" not in details:
             details["owner"] = re.sub(r"\s+", " ", owner).strip()
         category = first_string(entity, ("category", "additionalType", "@type"))
-        if category and category.casefold() not in {"organization", "localbusiness", "thing", "place"} and "business_type" not in details:
+        if category and category.casefold() not in {"organization", "localbusiness", "thing", "place"} and not re.search(r"(?i)\b(?:property value|subscription service|filing information|company profile)\b", category) and "business_type" not in details:
             details["business_type"] = re.sub(r"(?<!^)([A-Z])", r" \1", category).replace("/", " / ").strip()
         description = first_string(entity, ("description",))
         if description and "summary" not in details and not re.fullmatch(r"(?:©|Â©)?\s*\d{4}\s+Google LLC\.?", description, re.I):
@@ -403,12 +425,13 @@ def extract_business_details(item: dict[str, str], html: str, text: str) -> dict
         r"(?:specializes in|specialised in)\s+([^.;\n]{3,120})",
         r"(?:is in the|operates in the)\s+([^.;\n]{3,120})\s+business",
         r"(?:provides?|providing|offers?)\s+([^.;\n]{3,120})",
+        r"(?:\d+\s+likes?\.\s*)([^.;\n]{3,120}\b(?:company|business|services?|shop|contractor)\b)",
     )
     for pattern in patterns:
         match = re.search(pattern, surface, re.I)
         if match:
             value = re.sub(r"\s+", " ", match.group(1)).strip(" ,;:")
-            if value:
+            if value and not re.search(r"(?i)\b(?:property value|subscription service|filing information|company profile)\b", value):
                 details["business_type"] = value[:160]
                 break
     owner = re.search(
@@ -757,7 +780,10 @@ async def static_fetch(session: Any, url: str, proxy: str) -> tuple[str, str, st
                     break
             html = data.decode(response.charset or "utf-8", errors="replace")
             text = visible_text(html)
-            if len(text) < 120:
+            metadata = metadata_surface(html)
+            if metadata:
+                text = "\n".join((text, metadata)).strip()
+            if len(text) < 80:
                 raise RuntimeError("Static response contained too little readable content")
             return html, text, "static"
     raise RuntimeError("Too many redirects")
@@ -845,7 +871,8 @@ def snippet_result(item: dict[str, str], terms: list[str], mode: str, reason: st
     phones, emails = extract_contacts(surface) if score >= 2 and identity_match else ([], [])
     phones, emails = filter_contacts_for_identity(phones, emails, terms)
     emails = filter_source_emails(emails, item, terms)
-    if not phones and not emails:
+    details = extract_business_details(item, "", "") if identity_match else {}
+    if not phones and not emails and not details:
         return None
     return {
         **item,
@@ -855,7 +882,7 @@ def snippet_result(item: dict[str, str], terms: list[str], mode: str, reason: st
         "identity_match": identity_match,
         "phones": phones,
         "emails": emails,
-        "details": extract_business_details(item, "", "") if identity_match else {},
+        "details": details,
         "fallback_reason": reason,
         "duration_seconds": round(duration, 2),
     }

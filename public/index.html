@@ -346,16 +346,19 @@ function compactContactItems(items, render, label) {
   return `${visible}<details class="result-more"><summary>Show ${remaining.length} more ${label}</summary><div class="item-list">${remaining.map(render).join('')}</div></details>`;
 }
 function extractedFields(details={}) {
-  return Object.entries({business_name:'business name',business_type:'business type',address:'address',owner:'owner',summary:'page context'}).filter(([key]) => details?.[key]).map(([,label]) => label);
+  return Object.entries({business_name:'business name',business_type:'business type',address:'address',owner:'owner',website:'website',summary:'page context'}).filter(([key]) => details?.[key]).map(([,label]) => label);
 }
 function sourceDetailsHtml(details={}) {
-  const fields = [['business_name','Business'],['business_type','Type'],['address','Address'],['owner','Owner']];
-  const values = fields.filter(([key]) => details?.[key]).map(([key,label]) => `<span><b>${label}:</b> ${esc(details[key])}</span>`);
+  const fields = [['business_name','Business'],['business_type','Type'],['address','Address'],['owner','Owner'],['website','Website']];
+  const values = fields.filter(([key]) => details?.[key]).map(([key,label]) => {
+    if (key === 'website') return `<span><b>${label}:</b> <a href="${esc(details[key])}" target="_blank" rel="noopener noreferrer">${esc(sourceDomain(details[key]))}</a></span>`;
+    return `<span><b>${label}:</b> ${esc(details[key])}</span>`;
+  });
   return values.length ? `<div class="source-extracted source-details">${values.join(' · ')}</div>` : '';
 }
 function businessDetailsHtml(details=[]) {
-  const fields = [['business_name','Business'],['business_type','Business type'],['address','Address'],['owner','Owner'],['summary','Page context']];
-  const cards = details.flatMap(detail => fields.filter(([key]) => detail?.[key]).map(([key,label]) => `<div class="detail-card"><div class="detail-label">${label}</div><div class="detail-value">${esc(detail[key])}</div><div class="detail-source">From ${esc(detail.source_title || sourceDomain(detail.source_url || ''))}</div></div>`));
+  const fields = [['business_name','Business'],['business_type','Business type'],['address','Address'],['owner','Owner'],['website','Website'],['summary','Page context']];
+  const cards = details.flatMap(detail => fields.filter(([key]) => detail?.[key]).map(([key,label]) => `<div class="detail-card"><div class="detail-label">${label}</div><div class="detail-value">${key === 'website' ? `<a href="${esc(detail[key])}" target="_blank" rel="noopener noreferrer">${esc(sourceDomain(detail[key]))}</a>` : esc(detail[key])}</div><div class="detail-source">From ${esc(detail.source_title || sourceDomain(detail.source_url || ''))}</div></div>`));
   return cards.length ? `<section class="result-section"><h3>Business details extracted</h3><div class="result-body item-list">${cards.join('')}</div></section>` : '';
 }
 function externalSearchLinks(query='') {
