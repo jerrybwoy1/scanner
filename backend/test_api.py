@@ -140,6 +140,22 @@ class SearchBehaviorTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["phones"][0]["source_urls"], ["https://example.com/contact"])
         self.assertEqual(result["emails"][0]["source_urls"], ["https://example.com/contact"])
 
+    async def test_contact_results_drop_unconfirmed_sources(self) -> None:
+        discovered = [
+            {"url": "https://example.com/match", "title": "Example LLC", "snippet": "Example LLC", "provider": "test"},
+            {"url": "https://example.com/wrong", "title": "Unrelated LLC", "snippet": "Unrelated", "provider": "test"},
+        ]
+        scraped = [
+            {**discovered[0], "status": "scraped", "method": "static", "relevance": 5, "identity_match": True, "phones": [], "emails": [], "duration_seconds": 0.01},
+            {**discovered[1], "status": "scraped", "method": "static", "relevance": 1, "identity_match": False, "phones": [], "emails": [], "duration_seconds": 0.01},
+        ]
+        with patch.object(api, "discover", new=AsyncMock(return_value=(discovered, [{"provider": "test", "status": "complete", "results": 2}]))), patch.object(
+            api, "scrape_sources", new=AsyncMock(return_value=scraped)
+        ):
+            result = await api.run_search(api.SearchRequest(query="Example LLC", verify_email_domains=False))
+        self.assertEqual([source["url"] for source in result["sources"]], ["https://example.com/match"])
+        self.assertEqual(result["discarded_source_count"], 1)
+
     def test_required_routes_remain_available(self) -> None:
         methods_by_path = {route.path: route.methods for route in api.app.routes if hasattr(route, "methods")}
         self.assertIn("GET", methods_by_path["/health"])

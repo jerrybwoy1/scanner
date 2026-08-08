@@ -1108,7 +1108,15 @@ async def run_search(request: SearchRequest, emit: Any = None) -> dict[str, Any]
     await emit_progress(emit, "queries_prepared", count=1, queries=[subject], mode=mode)
     discovery_target = min(MAX_URLS, 6 if request.deep_search else DISCOVERY_TARGET)
     discovered, query_reports = await discover(subject, proxy, emit, discovery_target, mode)
-    sources = await scrape_sources(discovered, terms, mode, proxy, emit) if discovered else []
+    scraped_sources = await scrape_sources(discovered, terms, mode, proxy, emit) if discovered else []
+    discarded_sources = []
+    if mode == "contact":
+        discarded_sources = [source for source in scraped_sources if source.get("identity_match") is not True]
+        sources = [source for source in scraped_sources if source.get("identity_match") is True]
+        for source in discarded_sources:
+            await emit_progress(emit, "url_filtered", url=source.get("url", ""), title=source.get("title", ""), reason="identity not confirmed; excluded from contact results")
+    else:
+        sources = scraped_sources
 
     phone_map: dict[tuple[str, str], dict[str, Any]] = {}
     email_set: set[str] = set()
@@ -1147,6 +1155,8 @@ async def run_search(request: SearchRequest, emit: Any = None) -> dict[str, Any]
         status = "success"
     elif discovered and not scraped_count:
         status = "blocked"
+    elif discarded_sources and not sources:
+        status = "no_results"
     elif discovered:
         status = "no_contacts"
     elif provider_unavailable:
@@ -1167,6 +1177,7 @@ async def run_search(request: SearchRequest, emit: Any = None) -> dict[str, Any]
         "discovery_queries": query_reports,
         "discovered_count": len(discovered),
         "scraped_count": scraped_count,
+        "discarded_source_count": len(discarded_sources),
         "relevant_count": sum(1 for source in sources if source.get("relevance", 0) >= 2 and source.get("identity_match", True)),
         "duration_seconds": round(time.perf_counter() - started, 2),
         "proxy_used": bool(proxy),
