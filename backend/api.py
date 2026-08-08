@@ -191,13 +191,50 @@ def visible_text(html: str) -> str:
 def extraction_surface(html: str, text: str) -> str:
     decoded = unescape(html)
     extras: list[str] = []
-    for match in re.finditer(r"(?is)\b(?:href|content|data-email|data-phone|value)\s*=\s*(['\"])(.*?)\1", decoded):
+    for match in re.finditer(r"(?is)\b(?:href|content|data-email|data-phone|data-contact|data-value|value|aria-label)\s*=\s*(['\"])(.*?)\1", decoded):
         value = match.group(2).strip()
         if value.lower().startswith(("mailto:", "tel:")) or EMAIL_RE.search(value) or PHONE_RE.search(value) or INTERNATIONAL_PHONE_RE.search(value):
             extras.append(value.replace("mailto:", "").replace("tel:", ""))
     for match in re.finditer(r"(?is)<script[^>]+type\s*=\s*(['\"])application/ld\+json\1[^>]*>(.*?)</script>", decoded):
-        extras.append(match.group(2))
+        raw = match.group(2)
+        extras.append(raw)
+        for entity in structured_entities(raw):
+            for key in ("telephone", "email", "address", "streetAddress", "addressLocality", "addressRegion", "postalCode", "name", "legalName", "founder", "employee", "description", "category", "@type"):
+                value = entity.get(key)
+                if isinstance(value, (str, int, float)):
+                    extras.append(str(value))
+                elif isinstance(value, dict):
+                    extras.extend(str(nested) for nested in value.values() if isinstance(nested, (str, int, float)))
     return "\n".join((text, *extras))[:100_000]
+
+
+def structured_entities(value: Any) -> list[dict[str, Any]]:
+    """Return JSON-LD objects that can carry business/contact fields."""
+    entities: list[dict[str, Any]] = []
+
+    def walk(node: Any) -> None:
+        if isinstance(node, dict):
+            if any(key in node for key in ("telephone", "email", "address", "name", "legalName", "founder", "employee", "description", "category", "@type")):
+                entities.append(node)
+            for child in node.values():
+                walk(child)
+        elif isinstance(node, list):
+            for child in node:
+                walk(child)
+
+    try:
+        walk(json.loads(value))
+    except Exception:
+        return []
+    return entities
+
+
+def structured_html_entities(html: str) -> list[dict[str, Any]]:
+    decoded = unescape(html)
+    entities: list[dict[str, Any]] = []
+    for match in re.finditer(r"(?is)<script[^>]+type\s*=\s*(['\"])application/ld\+json\1[^>]*>(.*?)</script>", decoded):
+        entities.extend(structured_entities(match.group(2)))
+    return entities
 
 
 def normalize_phone(raw: str) -> dict[str, str] | None:
@@ -314,8 +351,53 @@ def extract_business_details(item: dict[str, str], html: str, text: str) -> dict
     """Extract only explicit page context; missing fields stay absent rather than guessed."""
     surface = "\n".join(value for value in (item.get("title", ""), item.get("snippet", ""), text) if value)
     details: dict[str, str] = {}
+    entities = structured_html_entities(html)
+
+    def first_string(entity: dict[str, Any], keys: tuple[str, ...]) -> str:
+        for key in keys:
+            value = entity.get(key)
+            if isinstance(value, str) and value.strip():
+                return re.sub(r"\s+", " ", value).strip()
+            if isinstance(value, dict):
+                nested = first_string(value, ("name", "text", "value", "streetAddress", "addressLocality", "addressRegion", "postalCode"))
+                if nested:
+                    return nested
+        return ""
+
+    def address_value(value: Any) -> str:
+        if isinstance(value, str):
+            return re.sub(r"\s+", " ", value).strip(" .,;")
+        if not isinstance(value, dict):
+            return ""
+        pieces = [
+            first_string(value, ("streetAddress",)),
+            first_string(value, ("addressLocality",)),
+            first_string(value, ("addressRegion",)),
+            first_string(value, ("postalCode",)),
+        ]
+        return ", ".join(piece for piece in pieces if piece)
+
+    for entity in entities:
+        address = address_value(entity.get("address"))
+        if address and "address" not in details:
+            details["address"] = address
+        name = first_string(entity, ("legalName", "name"))
+        if name and "business_name" not in details and len(name) < 180:
+            details["business_name"] = name
+        owner = entity.get("founder") or entity.get("owner")
+        if isinstance(owner, dict):
+            owner = owner.get("name")
+        if isinstance(owner, str) and owner.strip() and "owner" not in details:
+            details["owner"] = re.sub(r"\s+", " ", owner).strip()
+        category = first_string(entity, ("category", "additionalType", "@type"))
+        if category and category.casefold() not in {"organization", "localbusiness", "thing", "place"} and "business_type" not in details:
+            details["business_type"] = re.sub(r"(?<!^)([A-Z])", r" \1", category).replace("/", " / ").strip()
+        description = first_string(entity, ("description",))
+        if description and "summary" not in details and not re.fullmatch(r"(?:©|Â©)?\s*\d{4}\s+Google LLC\.?", description, re.I):
+            details["summary"] = description[:500]
+
     addresses = ADDRESS_RE.findall(surface)
-    if addresses:
+    if addresses and "address" not in details:
         details["address"] = re.sub(r"\s+", " ", addresses[0]).strip(" .,;")
     patterns = (
         r"(?:specializes in|specialised in)\s+([^.;\n]{3,120})",
@@ -335,8 +417,12 @@ def extract_business_details(item: dict[str, str], html: str, text: str) -> dict
     )
     if owner:
         details["owner"] = owner.group(1).strip()
-    if item.get("snippet"):
-        details["summary"] = re.sub(r"\s+", " ", item["snippet"]).strip()[:700]
+    if item.get("snippet") and "summary" not in details:
+        snippet = re.sub(r"\s+", " ", item["snippet"]).strip()
+        if re.fullmatch(r"(?:©|Â©)?\s*\d{4}\s+Google LLC\.?", snippet, re.I):
+            snippet = ""
+        if snippet:
+            details["summary"] = snippet[:500]
     return details
 
 
@@ -525,21 +611,34 @@ async def discover(subject: str, proxy: str, emit: Any = None, target: int = DIS
     import aiohttp
 
     providers = provider_chain()
+    queries = [subject]
+    if mode == "contact":
+        queries.extend((f"{subject} site:facebook.com", f"{subject} phone email contact"))
     urls: list[dict[str, str]] = []
     reports: list[dict[str, Any]] = []
     seen: set[str] = set()
     timeout = aiohttp.ClientTimeout(total=PROVIDER_TIMEOUT)
-    await emit_progress(emit, "discovery_started", query_count=len(providers))
+    await emit_progress(emit, "discovery_started", query_count=len(providers) * len(queries), queries=queries)
     async with aiohttp.ClientSession(timeout=timeout, headers={"User-Agent": "QikReach/1.2"}) as session:
         for index, (name, async_provider, backend) in enumerate(providers, start=1):
-            await emit_progress(emit, "query_started", index=index, total=len(providers), query=subject, provider=name)
+            total_queries = len(providers) * len(queries)
+            for variant_index, query in enumerate(queries):
+                await emit_progress(emit, "query_started", index=(index - 1) * len(queries) + variant_index + 1, total=total_queries, query=query, provider=name)
             try:
                 if async_provider:
-                    results = await asyncio.wait_for(async_provider(subject, session, backend), timeout=PROVIDER_TIMEOUT)
+                    tasks = [async_provider(query, session, backend) for query in queries]
                 else:
-                    results = await asyncio.wait_for(
-                        asyncio.to_thread(ddgs_search, subject, proxy, backend), timeout=PROVIDER_TIMEOUT
-                    )
+                    tasks = [asyncio.to_thread(ddgs_search, query, proxy, backend) for query in queries]
+                batches = await asyncio.wait_for(asyncio.gather(*tasks, return_exceptions=True), timeout=PROVIDER_TIMEOUT)
+                results: list[dict[str, str]] = []
+                failures: list[str] = []
+                for batch in batches:
+                    if isinstance(batch, Exception):
+                        failures.append(redact(batch))
+                    elif isinstance(batch, list):
+                        results.extend(batch)
+                if not results and failures:
+                    raise RuntimeError(failures[0])
                 mark_provider(name, "online")
                 accepted = 0
                 for result in results:
@@ -570,7 +669,7 @@ async def discover(subject: str, proxy: str, emit: Any = None, target: int = DIS
                     )
                     if len(urls) >= target or len(urls) >= MAX_URLS:
                         break
-                reports.append({"query": subject, "provider": name, "status": "complete", "results": accepted})
+                reports.append({"query": subject, "provider": name, "status": "complete", "results": accepted, "queries": queries, "query_errors": failures})
                 await emit_progress(
                     emit,
                     "query_completed",
@@ -586,7 +685,7 @@ async def discover(subject: str, proxy: str, emit: Any = None, target: int = DIS
                         "discovery_stopped",
                         completed=index,
                         total=len(providers),
-                        reason=f"{name} returned enough unique public sources; slower fallbacks were skipped.",
+                        reason=f"{name} returned enough unique public sources, including targeted public-page queries where available; slower fallbacks were skipped.",
                     )
                     break
             except asyncio.TimeoutError:
@@ -703,6 +802,10 @@ def identity_constraints_met(text: str, terms: list[str]) -> bool:
         phrase_tokens = phrase.split()
         if len(phrase_tokens) >= 2 and not any(text_tokens[index:index + len(phrase_tokens)] == phrase_tokens for index in range(len(text_tokens))):
             return False
+        if phrase_tokens and phrase_tokens[0].isdigit():
+            number = re.escape(phrase_tokens[0])
+            if not re.search(rf"(?<![a-z0-9-]){number}(?![a-z0-9-])", folded):
+                return False
     return (
         all(value.casefold() in folded for value in required_zips)
         and all(value in folded for value in required_emails)

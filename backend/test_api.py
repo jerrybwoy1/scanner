@@ -85,7 +85,38 @@ class SearchBehaviorTests(unittest.IsolatedAsyncioTestCase):
 
     def test_business_phrase_requires_token_boundaries(self) -> None:
         self.assertFalse(api.identity_constraints_met("SG984, LLC company profile", ["984 LLC"]))
+        self.assertFalse(api.identity_constraints_met("PI DER-984 LLC company profile", ["984 LLC"]))
         self.assertTrue(api.identity_constraints_met("984, LLC company profile", ["984 LLC"]))
+
+    def test_json_ld_fields_are_extracted_before_page_context(self) -> None:
+        html = '''
+        <script type="application/ld+json">
+        {"@type":"AutomotiveBusiness","name":"Example Auto LLC","telephone":"+1 305-555-0100",
+         "email":"service@exampleauto.com","address":{"streetAddress":"12 Main St","addressLocality":"Miami",
+         "addressRegion":"FL","postalCode":"33139"},"founder":{"name":"Jane Doe"},
+         "description":"Independent auto repair shop."}
+        </script>
+        '''
+        details = api.extract_business_details({"title":"Example Auto LLC", "snippet":"© 2025 Google LLC."}, html, "")
+        self.assertEqual(details["business_name"], "Example Auto LLC")
+        self.assertEqual(details["business_type"], "Automotive Business")
+        self.assertEqual(details["address"], "12 Main St, Miami, FL, 33139")
+        self.assertEqual(details["owner"], "Jane Doe")
+        self.assertEqual(details["summary"], "Independent auto repair shop.")
+        phones, emails = api.extract_contacts(api.extraction_surface(html, ""))
+        self.assertEqual(phones[0]["line_type"], "mobile or landline")
+        self.assertIn("service@exampleauto.com", emails)
+
+    async def test_contact_discovery_adds_public_facebook_query(self) -> None:
+        calls = []
+
+        def fake_ddgs(query: str, proxy: str, backend: str):
+            calls.append(query)
+            return []
+
+        with patch.object(api, "ddgs_search", side_effect=fake_ddgs), patch.object(api, "provider_chain", return_value=[("test", None, "bing")]):
+            await api.discover('"Example Auto LLC"', "", target=3, mode="contact")
+        self.assertTrue(any("site:facebook.com" in query for query in calls))
 
     async def test_general_query_succeeds_with_sources_without_contacts(self) -> None:
         discovered = [{"url": "https://example.com/", "title": "Potato", "snippet": "Potato reference", "provider": "test"}]
