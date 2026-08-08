@@ -1151,7 +1151,7 @@ async def run_search(request: SearchRequest, emit: Any = None) -> dict[str, Any]
         record["source_urls"] = email_sources.get(record["email"], [])
 
     provider_unavailable = not discovered and bool(query_reports) and all(report.get("status") == "error" for report in query_reports)
-    if phone_map or emails or (mode == "general" and scraped_count):
+    if phone_map or emails or business_details or (mode == "general" and scraped_count):
         status = "success"
     elif discovered and not scraped_count:
         status = "blocked"
