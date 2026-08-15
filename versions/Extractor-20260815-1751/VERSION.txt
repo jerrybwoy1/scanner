@@ -1,0 +1,11 @@
+Extractor-20260815-1751
+
+Unique clean version. Existing repository files were not overwritten.
+
+Frontend SHA256: eca36c2eaf93143ea648ce3ebf4bf75d8c99e8c94d4a4092fd93c02974f2725e
+Backend SHA256: e8ba657ea327a0f932efb17df219216699bb8ad2dba242e16797f7e173d53570
+Delivery ZIP SHA256: 7535268bcabfb2cc32e114170372af32b12af0c570fd912b1acf1862c6613b13
+
+This version adds a softer premium interface, proper header, Advanced Search closed by default, collapsible remembered Live Research, XLSX click/drag upload with received confirmation, background workbook jobs, progress/timer/completed/remaining/failed counters, pause/continue/stop controls, and enriched XLSX download.
+
+Clean-file rules applied: no prior product/build branding in the new source, no duplicate IDs, one stylesheet, one script, no stale patch layer, no hidden legacy UI, no old source overwritten.
