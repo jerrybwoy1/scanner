@@ -1,0 +1,1 @@
+{"name":"extractor-web","private":true,"type":"module","scripts":{"dev":"wrangler dev","deploy":"wrangler deploy"},"devDependencies":{"@cloudflare/workers-types":"latest","typescript":"latest","wrangler":"latest"}}
