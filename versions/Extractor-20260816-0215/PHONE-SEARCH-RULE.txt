@@ -1,0 +1,10 @@
+Mandatory phone search behavior
+
+For every valid US phone number, automatically search all of these forms:
+1. (AAA) BBB-CCCC
+2. AAA-BBB-CCCC
+3. AAA BBB CCCC
+4. AAABBBCCCC
+5. +1 AAA BBB CCCC
+
+The first two formats are mandatory and covered by regression tests. This applies to manual searches, workbook rows, and newly discovered numbers that trigger follow-up research.
