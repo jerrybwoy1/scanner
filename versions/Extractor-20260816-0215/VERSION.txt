@@ -1,0 +1,7 @@
+Extractor-20260816-0215
+
+New non-overwriting clean version.
+Phone search guarantee: every valid US phone is searched in at least both (AAA) BBB-CCCC and AAA-BBB-CCCC formats, plus digits-only, spaced, and +1 variants.
+Applies to manual search, XLSX enrichment, and newly discovered phone follow-up searches.
+
+All prior versions remain untouched.
