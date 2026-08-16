@@ -1,0 +1,7 @@
+Extractor-Codex-Handoff-20260816-0248
+
+New non-overwriting Codex instruction revision.
+
+Adds real mobile/desktop settings, secure API-provider management, universal auto-growing manual research input, Gemini/Groq provider roles, visible AI route activity, and controlled evidence-driven route learning.
+
+The audited extractor source remains Extractor-20260816-0232-Audited. Codex must create a new extractor version after implementing and testing these instructions. Prior versions remain untouched.
