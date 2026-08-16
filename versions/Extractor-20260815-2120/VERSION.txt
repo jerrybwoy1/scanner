@@ -1,0 +1,13 @@
+Extractor-20260815-2120
+
+New unique clean version. No existing file was overwritten.
+
+Local delivery package: Extractor-20260815-2120-Package.zip
+Package SHA256: 62bbd1370b616c2144fa8dc5fcd49173683bd904bc33b9eea99e91d6cd3d83c2
+Frontend SHA256: 259a44e54efa637251b6979615a3e0f0b8158c5d407aec55ac7330cc7470e478
+Backend SHA256: e203abc54eb60fb06bf4549a6023d8453807e572a0bbe5e9ffcfe2fabb0f6c88
+Worker SHA256: 8fbb8ff3aaff1af2a4961734a552a19183efad4054dc85195789ccb6e2edf330
+
+Changes: equal two-column workspace; softer premium palette with darker charcoal text/borders; small More identity fields control instead of large advanced block; instruction-driven targeted searches; follow-up research using current evidence context; structured scored results; detailed chronological research route; page snapshot controls for public evidence pages; history moved to header; workbook enrichment retained with progress/pause/continue/stop/download.
+
+Clean audit: 6 backend tests passed; Python compile passed; JavaScript syntax passed; 62 unique HTML IDs; 61 JavaScript element references resolved; one style block; one script block; stale-name scan clean.
