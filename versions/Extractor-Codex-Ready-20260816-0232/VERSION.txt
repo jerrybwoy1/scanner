@@ -1,0 +1,20 @@
+Extractor-Codex-Ready-20260816-0232
+
+Pre-Codex audited non-overwriting version.
+
+Final package SHA256:
+cb7b019935c3cb4ec2f8b7a945c98e3e9d12a38edc9ac34b7d9a7f45caae38fa  Extractor-Codex-Ready-20260816-0232.zip
+
+Audited source ZIP SHA256:
+10cfda7db10c965e1aaae531ab3cbaea64867ff3da625da833997988854eb925  Extractor-20260816-0232-Audited.zip
+
+QA workbook SHA256:
+f3917a37d4dba58f836f65493295595a5087ce59557fdef2ad62cda4788c197f  CODEX-EXTRACTOR-QA-20260816-0232.xlsx
+
+Master handoff SHA256:
+d4f3373416dacf9b8d7626796198ca9b008ad70b9073efc63ab51b6e9ba09660  CODEX-EXTRACTOR-MASTER-HANDOFF-20260816-0232.txt
+
+Audit report SHA256:
+a14c2f4b3dfe1da4f3ea0b4e5bc95e93c246820b484494d870ba8fc40e3e73e7  PRE-CODEX-AUDIT-REPORT-20260816-0232.txt
+
+No prior version was overwritten. Use this version as the Codex starting point and continue creating new unique GitHub versions after each accepted improvement cycle.
