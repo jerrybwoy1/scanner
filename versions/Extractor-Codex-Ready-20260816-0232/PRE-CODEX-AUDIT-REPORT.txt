@@ -1,0 +1,38 @@
+PRE-CODEX FULL AUDIT REPORT
+Version: 2026-08-16 02:32 ET
+Status: READY FOR CODEX ITERATION WITH KNOWN IMPROVEMENT PRIORITIES
+
+Critical issues fixed before handoff:
+1. All detected Phone1..N and Email1..N values now enter batch identity/query planning instead of only the first phone/email.
+2. Every valid US phone plans both mandatory search forms: (AAA) BBB-CCCC and AAA-BBB-CCCC, plus spaced, digits-only and +1 variants.
+3. Static source fetching now rejects private/local destinations and revalidates redirects before following them.
+4. Browser fallback rejects private/local initial targets.
+5. Local backend CORS is restricted to local frontend origins plus optional APP_ORIGIN.
+
+Test results:
+- Python compile: PASS
+- backend regression tests: 12/12 PASS
+- 91/91 source rows planner audit: PASS
+- all detected Phone1..3 values get both mandatory formats: PASS
+- all valid Email1..3 values enter exact-email planning: PASS
+- SSN is preserved but not intentionally used as a public query: PASS
+- real Uvicorn batch health/start/status/pause/continue/stop/partial-download: PASS
+- frontend inline JavaScript syntax: PASS
+- frontend IDs: 62 unique, zero duplicates, zero missing getElementById targets
+- one stylesheet block / one script block: PASS
+- desktop equal-height two-column layout and Advanced closed by default: PASS in browser-mocked harness
+- 390px mobile one-column/no-horizontal-overflow: PASS in browser-mocked harness
+- stale/debug/product-name scan: zero findings
+- compiled __pycache__ artifacts removed before packaging
+
+Known Codex priorities:
+- persist complete chronological route events per workbook lead
+- generate concise route summary per lead
+- fully validate and score every original input email
+- implement bounded automatic follow-up rounds from high-confidence new facts
+- persist batch/row state for restart/resume
+- measure route/provider/source-family effectiveness and reprioritize from evidence
+- run unrestricted live-web 10-lead smoke test and then all 91 leads
+- add optional Gemini/Groq adapters only after deterministic/free routes are stable
+
+Codex must use GitHub for every accepted cycle, create a new unique version, add regression tests for repeatable defects, retest exact failures, retest the 10-lead set, then all 91 when search/extraction/scoring changes, and continue until acceptance gates pass twice consecutively.
